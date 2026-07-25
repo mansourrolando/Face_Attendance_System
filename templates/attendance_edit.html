@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل سجل الحضور{% endblock %}
+
+{% block styles %}
+    <style>
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .btn-back {
+            background: #95a5a6; color: white; padding: 8px 18px;
+            border-radius: 5px; text-decoration: none; font-size: 14px;
+        }
+        .btn-back:hover { background: #7f8c8d; }
+
+        /* بطاقة المعلومات الحالية */
+        .info-card {
+            background: #fff3cd; border: 1px solid #ffc107;
+            border-radius: 8px; padding: 20px; margin-bottom: 20px;
+            max-width: 750px;
+        }
+        .info-card-title {
+            font-weight: bold; color: #856404; margin-bottom: 12px;
+            font-size: 15px; border-bottom: 1px solid #ffc107;
+            padding-bottom: 8px;
+        }
+        .info-row {
+            display: flex; gap: 15px; flex-wrap: wrap;
+            margin-bottom: 8px; font-size: 14px;
+        }
+        .info-item { min-width: 120px; }
+        .info-item strong { color: #856404; }
+        .badge-status {
+            display: inline-block; padding: 3px 10px;
+            border-radius: 4px; font-size: 12px; color: white;
+        }
+        .badge-present { background: #27ae60; }
+        .badge-late { background: #f39c12; }
+        .badge-absent { background: #e74c3c; }
+        .badge-leave { background: #3498db; }
+        .info-warning { color: #e67e22; font-size: 13px; margin-top: 5px; }
+        .info-danger { color: #e74c3c; font-size: 13px; margin-top: 5px; }
+
+        /* نموذج التعديل */
+        .form-box {
+            background: white; border-radius: 8px; padding: 25px;
+            max-width: 750px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .form-row { display: flex; gap: 15px; margin-bottom: 0; }
+        .form-group { margin-bottom: 15px; flex: 1; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: #333;
+            font-weight: bold; font-size: 14px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%; padding: 10px; border: 1px solid #ddd;
+            border-radius: 5px; font-family: inherit; font-size: 14px;
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .btn-save {
+            background: #27ae60; color: white; padding: 10px 30px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+        }
+        .btn-save:hover { background: #219a52; }
+        .btn-cancel {
+            background: #95a5a6; color: white; padding: 10px 30px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+            text-decoration: none; display: inline-block;
+        }
+
+        /* أزرار نوع السجل */
+        .type-selector {
+            display: flex; gap: 10px; margin-bottom: 20px;
+        }
+        .type-btn {
+            flex: 1; padding: 14px 10px; border: 2px solid #ddd;
+            border-radius: 8px; background: white; cursor: pointer;
+            text-align: center; transition: all 0.2s;
+            font-size: 14px; font-weight: bold; color: #555;
+        }
+        .type-btn:hover { border-color: #3498db; background: #f8f9fa; }
+        .type-btn.active-attend { border-color: #27ae60; background: #eafaf1; color: #27ae60; }
+        .type-btn.active-absent { border-color: #e74c3c; background: #fdedec; color: #e74c3c; }
+        .type-btn.active-leave { border-color: #3498db; background: #ebf5fb; color: #3498db; }
+        .type-btn .type-icon { font-size: 22px; display: block; margin-bottom: 4px; }
+        .type-btn .type-text { font-size: 13px; }
+
+        /* بطاقة الحساب الفوري */
+        .calc-card {
+            max-width: 750px; border-radius: 8px; padding: 18px 20px;
+            margin-bottom: 15px; display: none; border: 2px solid;
+        }
+        .calc-card.calc-ok { background: #eafaf1; border-color: #27ae60; }
+        .calc-card.calc-warning { background: #fef9e7; border-color: #f39c12; }
+        .calc-card.calc-danger { background: #fdedec; border-color: #e74c3c; }
+        .calc-card.calc-mixed { background: #fef5e7; border-color: #e67e22; }
+
+        .calc-title {
+            font-weight: bold; font-size: 15px; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .calc-title .icon { font-size: 18px; }
+        .calc-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        .calc-item {
+            background: rgba(255,255,255,0.7); border-radius: 6px;
+            padding: 10px 12px; text-align: center;
+        }
+        .calc-item .calc-label { font-size: 12px; color: #7f8c8d; margin-bottom: 4px; }
+        .calc-item .calc-value { font-size: 18px; font-weight: bold; }
+        .calc-item .calc-value.val-green { color: #27ae60; }
+        .calc-item .calc-value.val-orange { color: #f39c12; }
+        .calc-item .calc-value.val-red { color: #e74c3c; }
+        .calc-item .calc-value.val-blue { color: #3498db; }
+        .calc-item .calc-value.val-dark { color: #2c3e50; }
+        .calc-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 4px;
+            font-size: 13px; font-weight: bold; color: white; margin-top: 5px;
+        }
+        .badge-present-calc { background: #27ae60; }
+        .badge-late-calc { background: #f39c12; }
+        .badge-early-calc { background: #e74c3c; }
+        .badge-mixed-calc { background: #8e44ad; }
+
+        .calc-info {
+            background: #d6eaf8; border: 1px solid #85c1e9;
+            border-radius: 8px; padding: 12px 15px; margin-bottom: 15px;
+            font-size: 13px; color: #1a5276;
+        }
+
+        .absence-row { display: none; }
+        .absence-row.show { display: flex; }
+
+        /* بطاقة الحذف */
+        .delete-card {
+            background: #f8d7da; border: 1px solid #f5c6cb;
+            border-radius: 8px; padding: 20px; max-width: 750px;
+        }
+        .delete-card-title {
+            font-weight: bold; color: #721c24; margin-bottom: 10px;
+            font-size: 15px; border-bottom: 1px solid #f5c6cb;
+            padding-bottom: 8px;
+        }
+        .delete-card p { color: #721c24; margin-bottom: 12px; font-size: 14px; }
+        .btn-delete {
+            background: #e74c3c; color: white; padding: 8px 20px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+        }
+        .btn-delete:hover { background: #c0392b; }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>تعديل سجل الحضور</h1>
+        <a href="{{ url_for('reports.reports') }}" class="btn-back">رجوع للتقارير</a>
+    </div>
+
+    <!-- معلومات السجل الحالي -->
+    <div class="info-card">
+        <div class="info-card-title">بيانات السجل الحالي</div>
+        <div class="info-row">
+            <div class="info-item"><strong>الموظف:</strong> {{ record.employee.name if record.employee else '-' }}</div>
+            <div class="info-item"><strong>التاريخ:</strong> {{ record.date }}</div>
+            <div class="info-item"><strong>الحضور:</strong> {{ record.time_in.strftime('%H:%M') if record.time_in else '-' }}</div>
+            <div class="info-item"><strong>الانصراف:</strong> {{ record.time_out.strftime('%H:%M') if record.time_out else '-' }}</div>
+            <div class="info-item">
+                <strong>الحالة:</strong>
+                {% if record.status == 'present' %}<span class="badge-status badge-present">حاضر</span>
+                {% elif record.status == 'late' %}<span class="badge-status badge-late">متأخر</span>
+                {% elif record.status == 'absent' %}<span class="badge-status badge-absent">غائب</span>
+                {% elif record.status == 'leave' %}<span class="badge-status badge-leave">إجازة</span>
+                {% endif %}
+            </div>
+            <div class="info-item"><strong>ساعات العمل:</strong> {{ '%.1f'|format(record.work_hours) if record.work_hours else '-' }} ساعة</div>
+        </div>
+        {% if record.late_minutes %}
+        <div class="info-warning">تأخير: {{ record.late_minutes }} دقيقة</div>
+        {% endif %}
+        {% if record.early_checkout %}
+        <div class="info-danger">خروج مبكر: {{ record.early_checkout_minutes }} دقيقة</div>
+        {% endif %}
+    </div>
+
+    <!-- نموذج التعديل -->
+    <div class="form-box">
+        <form method="POST" action="{{ url_for('attendance_manage.attendance_edit', id=record.id) }}" id="attendanceForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <!-- حقل الحالة المخفي - يتم تعيينه تلقائياً -->
+            <input type="hidden" name="status" id="status_hidden" value="{{ record.status }}">
+
+            <!-- اختيار نوع السجل -->
+            <div class="type-selector">
+                <div class="type-btn {% if record.status in ('present', 'late') %}active-attend{% endif %}" id="btnAttend" onclick="setType('attend')">
+                    <span class="type-icon">&#128197;</span>
+                    <span class="type-text">حضور / انصراف</span>
+                </div>
+                <div class="type-btn {% if record.status == 'absent' %}active-absent{% endif %}" id="btnAbsent" onclick="setType('absent')">
+                    <span class="type-icon">&#10060;</span>
+                    <span class="type-text">غياب</span>
+                </div>
+                <div class="type-btn {% if record.status == 'leave' %}active-leave{% endif %}" id="btnLeave" onclick="setType('leave')">
+                    <span class="type-icon">&#127970;</span>
+                    <span class="type-text">إجازة</span>
+                </div>
+            </div>
+
+            <!-- حقول الحضور والانصراف -->
+            <div class="form-row" id="time_row" style="{% if record.status in ('absent', 'leave') %}display:none{% endif %}">
+                <div class="form-group">
+                    <label>وقت الحضور</label>
+                    <input type="time" name="time_in" id="time_in"
+                           value="{{ record.time_in.strftime('%H:%M') if record.time_in else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>وقت الانصراف</label>
+                    <input type="time" name="time_out" id="time_out"
+                           value="{{ record.time_out.strftime('%H:%M') if record.time_out else '' }}">
+                </div>
+            </div>
+
+            <!-- نوع الغياب -->
+            <div class="form-row absence-row {% if record.status == 'absent' %}show{% endif %}" id="absence_type_row">
+                <div class="form-group">
+                    <label>نوع الغياب</label>
+                    <select name="absence_type" id="absence_type">
+                        <option value="unjustified" {% if record.absence_type == 'unjustified' %}selected{% endif %}>غير مبرر</option>
+                        <option value="justified" {% if record.absence_type == 'justified' %}selected{% endif %}>مبرر</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>ملاحظات</label>
+                <textarea name="notes" id="notes">{{ record.notes or '' }}</textarea>
+            </div>
+
+            <!-- بطاقة الحساب الفوري -->
+            <div class="calc-card" id="calcCard">
+                <div class="calc-title">
+                    <span class="icon" id="calcIcon">&#9201;</span>
+                    <span id="calcTitle">حساب تلقائي</span>
+                    <span class="calc-badge" id="calcBadge"></span>
+                </div>
+                <div class="calc-grid">
+                    <div class="calc-item">
+                        <div class="calc-label">ساعات العمل</div>
+                        <div class="calc-value val-dark" id="calcWorkHours">-</div>
+                    </div>
+                    <div class="calc-item">
+                        <div class="calc-label">دقائق التأخير</div>
+                        <div class="calc-value" id="calcLateMins">-</div>
+                    </div>
+                    <div class="calc-item">
+                        <div class="calc-label">خروج مبكر</div>
+                        <div class="calc-value" id="calcEarlyMins">-</div>
+                    </div>
+                    <div class="calc-item">
+                        <div class="calc-label">وقت الدوام</div>
+                        <div class="calc-value val-blue" id="calcWorkTime">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calc-info">
+                سيتم إعادة حساب ساعات العمل ودقائق التأخير والخروج المبكر تلقائياً عند الحفظ.<br>
+                <strong>وقت بداية الدوام:</strong> {{ work_start }} &nbsp; | &nbsp; <strong>وقت نهاية الدوام:</strong> {{ work_end }} &nbsp; | &nbsp; <strong>فترة السماح:</strong> {{ grace_period }} دقيقة
+            </div>
+
+            <button type="submit" class="btn-save">حفظ التعديلات</button>
+            <a href="{{ url_for('reports.reports') }}" class="btn-cancel">إلغاء</a>
+        </form>
+    </div>
+
+    <!-- حذف السجل -->
+    <div class="delete-card">
+        <div class="delete-card-title">حذف السجل</div>
+        <p>هل تريد حذف هذا السجل نهائياً؟ لا يمكن التراجع عن هذا الإجراء.</p>
+        <form method="POST" action="{{ url_for('attendance_manage.attendance_delete', id=record.id) }}"
+              onsubmit="return confirm('هل أنت متأكد من حذف هذا السجل؟ لا يمكن التراجع!');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-delete">حذف السجل نهائياً</button>
+        </form>
+    </div>
+
+    <script>
+    var WORK_START = '{{ work_start }}';
+    var WORK_END = '{{ work_end }}';
+    var GRACE_PERIOD = parseInt('{{ grace_period }}');
+    var currentType = '{% if record.status == "absent" %}absent{% elif record.status == "leave" %}leave{% else %}attend{% endif %}';
+
+    function setType(type) {
+        currentType = type;
+        var btnAttend = document.getElementById('btnAttend');
+        var btnAbsent = document.getElementById('btnAbsent');
+        var btnLeave = document.getElementById('btnLeave');
+        var timeRow = document.getElementById('time_row');
+        var absenceRow = document.getElementById('absence_type_row');
+        var statusHidden = document.getElementById('status_hidden');
+        var calcCard = document.getElementById('calcCard');
+
+        btnAttend.className = 'type-btn';
+        btnAbsent.className = 'type-btn';
+        btnLeave.className = 'type-btn';
+
+        if (type === 'attend') {
+            btnAttend.className = 'type-btn active-attend';
+            timeRow.style.display = 'flex';
+            absenceRow.className = 'form-row absence-row';
+            statusHidden.value = 'present';
+            calculateAttendance();
+        } else if (type === 'absent') {
+            btnAbsent.className = 'type-btn active-absent';
+            timeRow.style.display = 'none';
+            absenceRow.className = 'form-row absence-row show';
+            statusHidden.value = 'absent';
+            calcCard.style.display = 'none';
+            document.getElementById('time_in').value = '';
+            document.getElementById('time_out').value = '';
+        } else if (type === 'leave') {
+            btnLeave.className = 'type-btn active-leave';
+            timeRow.style.display = 'none';
+            absenceRow.className = 'form-row absence-row';
+            statusHidden.value = 'leave';
+            calcCard.style.display = 'none';
+            document.getElementById('time_in').value = '';
+            document.getElementById('time_out').value = '';
+        }
+    }
+
+    function timeToMinutes(timeStr) {
+        if (!timeStr) return null;
+        var parts = timeStr.split(':');
+        if (parts.length < 2) return null;
+        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    }
+
+    function calculateAttendance() {
+        if (currentType !== 'attend') return;
+
+        var timeIn = document.getElementById('time_in').value;
+        var timeOut = document.getElementById('time_out').value;
+        var statusHidden = document.getElementById('status_hidden');
+
+        var card = document.getElementById('calcCard');
+        var icon = document.getElementById('calcIcon');
+        var title = document.getElementById('calcTitle');
+        var badge = document.getElementById('calcBadge');
+        var workHoursEl = document.getElementById('calcWorkHours');
+        var lateMinsEl = document.getElementById('calcLateMins');
+        var earlyMinsEl = document.getElementById('calcEarlyMins');
+        var workTimeEl = document.getElementById('calcWorkTime');
+
+        if (!timeIn && !timeOut) {
+            card.style.display = 'none';
+            statusHidden.value = 'present';
+            return;
+        }
+
+        // حساب ساعات العمل
+        var workMins = null;
+        if (timeIn && timeOut) {
+            var inMins = timeToMinutes(timeIn);
+            var outMins = timeToMinutes(timeOut);
+            if (inMins !== null && outMins !== null && outMins > inMins) {
+                workMins = outMins - inMins;
+            }
+        }
+
+        // حساب التأخير
+        var lateMins = 0;
+        var isLate = false;
+        if (timeIn) {
+            var inMins = timeToMinutes(timeIn);
+            var startMins = timeToMinutes(WORK_START);
+            if (inMins !== null && startMins !== null) {
+                var allowedMins = startMins + GRACE_PERIOD;
+                if (inMins > allowedMins) {
+                    lateMins = inMins - allowedMins;
+                    isLate = true;
+                }
+            }
+        }
+
+        // حساب الخروج المبكر
+        var earlyMins = 0;
+        var isEarly = false;
+        if (timeOut) {
+            var outMins = timeToMinutes(timeOut);
+            var endMins = timeToMinutes(WORK_END);
+            if (outMins !== null && endMins !== null && outMins < endMins) {
+                earlyMins = endMins - outMins;
+                isEarly = true;
+            }
+        }
+
+        // تعيين الحالة تلقائياً
+        if (isLate) {
+            statusHidden.value = 'late';
+        } else {
+            statusHidden.value = 'present';
+        }
+
+        // عرض البطاقة
+        card.style.display = 'block';
+
+        // ساعات العمل
+        if (workMins !== null) {
+            var h = (workMins / 60).toFixed(1);
+            workHoursEl.textContent = h + ' ساعة';
+            workHoursEl.className = 'calc-value val-dark';
+        } else {
+            workHoursEl.textContent = '-';
+            workHoursEl.className = 'calc-value val-dark';
+        }
+
+        // دقائق التأخير
+        if (isLate) {
+            lateMinsEl.textContent = lateMins + ' دقيقة';
+            lateMinsEl.className = 'calc-value val-orange';
+        } else if (timeIn) {
+            lateMinsEl.textContent = 'لا تأخير';
+            lateMinsEl.className = 'calc-value val-green';
+        } else {
+            lateMinsEl.textContent = '-';
+            lateMinsEl.className = 'calc-value';
+        }
+
+        // الخروج المبكر
+        if (isEarly) {
+            earlyMinsEl.textContent = earlyMins + ' دقيقة';
+            earlyMinsEl.className = 'calc-value val-red';
+        } else if (timeOut) {
+            earlyMinsEl.textContent = 'لا';
+            earlyMinsEl.className = 'calc-value val-green';
+        } else {
+            earlyMinsEl.textContent = '-';
+            earlyMinsEl.className = 'calc-value';
+        }
+
+        // وقت الدوام
+        workTimeEl.textContent = WORK_START + ' - ' + WORK_END;
+
+        // تحديد نوع البطاقة والشارة
+        card.className = 'calc-card';
+        if (isLate && isEarly) {
+            card.classList.add('calc-mixed');
+            icon.innerHTML = '&#9888;';
+            title.textContent = 'تأخير + خروج مبكر';
+            badge.textContent = 'متأخر + انصراف مبكر';
+            badge.className = 'calc-badge badge-mixed-calc';
+        } else if (isLate) {
+            card.classList.add('calc-warning');
+            icon.innerHTML = '&#9888;';
+            title.textContent = 'تأخير';
+            badge.textContent = 'متأخر';
+            badge.className = 'calc-badge badge-late-calc';
+        } else if (isEarly) {
+            card.classList.add('calc-danger');
+            icon.innerHTML = '&#9201;';
+            title.textContent = 'خروج مبكر';
+            badge.textContent = 'انصراف مبكر';
+            badge.className = 'calc-badge badge-early-calc';
+        } else {
+            card.classList.add('calc-ok');
+            icon.innerHTML = '&#10004;';
+            title.textContent = 'طبيعي';
+            badge.textContent = 'حاضر';
+            badge.className = 'calc-badge badge-present-calc';
+        }
+    }
+
+    // تحديث تلقائي عند تغيير أي حقل
+    document.getElementById('time_in').addEventListener('change', calculateAttendance);
+    document.getElementById('time_in').addEventListener('input', calculateAttendance);
+    document.getElementById('time_out').addEventListener('change', calculateAttendance);
+    document.getElementById('time_out').addEventListener('input', calculateAttendance);
+
+    // حساب أولي
+    calculateAttendance();
+    </script>
+{% endblock %}

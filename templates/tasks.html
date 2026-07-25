@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}المهام{% endblock %}
+
+{% block styles %}
+    <style>
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .btn-add {
+            background: #27ae60; color: white; padding: 10px 20px;
+            text-decoration: none; border-radius: 5px; font-size: 14px;
+        }
+        .type-task { background: #e67e22; }
+        .type-overtime { background: #27ae60; }
+        .btn-delete {
+            background: #7f8c8d; color: white; padding: 5px 10px;
+            border: none; border-radius: 3px; cursor: pointer; font-size: 12px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>المهام والعمل الإضافي</h1>
+        <a href="{{ url_for('leaves.leave_add', tab='task') }}" class="btn-add">إضافة مهمة</a>
+    </div>
+
+    <div class="table-box">
+        <table>
+            <thead>
+                <tr>
+                    <th>الموظف</th>
+                    <th>النوع</th>
+                    <th>التاريخ</th>
+                    <th>الوقت</th>
+                    <th>الساعات</th>
+                    <th>الوصف</th>
+                    <th>إجراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>{{ task.employee.name if task.employee else '-' }}</td>
+                    <td>
+                        {% if task.task_type == 'admin_task' %}
+                            <span class="badge type-task">مهمة إدارية</span>
+                        {% else %}
+                            <span class="badge type-overtime">عمل إضافي</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ task.date }}</td>
+                    <td style="direction: ltr; text-align: right;">
+                        {{ task.start_time.strftime('%H:%M') if task.start_time else '-' }} -
+                        {{ task.end_time.strftime('%H:%M') if task.end_time else '-' }}
+                    </td>
+                    <td>{{ task.total_hours }} ساعة</td>
+                    <td>{{ task.description or '-' }}</td>
+                    <td>
+                        <form action="{{ url_for('tasks.task_delete', id=task.id) }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-delete" onclick="return confirm('حذف؟')">حذف</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align:center; color:#999; padding:30px;">لا توجد مهام مسجلة</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

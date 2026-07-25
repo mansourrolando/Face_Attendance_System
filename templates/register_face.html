@@ -1,0 +1,631 @@
+{% extends "base.html" %}
+
+{% block title %}تسجيل بصمة الوجه - {{ employee.name }}{% endblock %}
+
+{% block styles %}
+    <style>
+        .register-card {
+            background: white; padding: 25px; border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            max-width: 700px; margin: 0 auto;
+        }
+
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 5px; font-size: 1.5rem; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 25px; font-size: 0.95rem; }
+        .employee-name { color: #3498db; font-weight: bold; }
+
+        /* === الكاميرا === */
+        .camera-wrapper {
+            position: relative;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 4/3;
+            margin-bottom: 20px;
+        }
+        #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        #canvas { display: none; }
+
+        /* === تأثير Face ID - غشاء داكن خارج الدائرة === */
+        .face-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .face-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.45);
+            -webkit-mask: radial-gradient(
+                ellipse 25% 32% at 50% 50%,
+                transparent 90%,
+                black 100%
+            );
+            mask: radial-gradient(
+                ellipse 25% 32% at 50% 50%,
+                transparent 90%,
+                black 100%
+            );
+        }
+
+        .face-guide {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50%; height: 65%;
+            border: 2.5px solid rgba(52, 152, 219, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 3;
+            animation: face-guide-glow 2.5s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.15), inset 0 0 20px rgba(52, 152, 219, 0.05);
+        }
+        @keyframes face-guide-glow {
+            0%, 100% {
+                border-color: rgba(52, 152, 219, 0.5);
+                box-shadow: 0 0 15px rgba(52, 152, 219, 0.15);
+            }
+            50% {
+                border-color: rgba(52, 152, 219, 0.9);
+                box-shadow: 0 0 30px rgba(52, 152, 219, 0.35);
+            }
+        }
+
+        /* خط المسح المتحرك داخل الدائرة */
+        .face-guide::after {
+            content: '';
+            position: absolute;
+            top: 10%; left: 10%; right: 10%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.7), transparent);
+            animation: scan-line 3s ease-in-out infinite;
+            border-radius: 1px;
+        }
+        @keyframes scan-line {
+            0%, 100% { top: 10%; opacity: 0; }
+            10% { opacity: 1; }
+            50% { top: 85%; opacity: 1; }
+            90% { opacity: 0; }
+        }
+
+        .cam-badge {
+            position: absolute;
+            bottom: 10px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            color: #fff; padding: 4px 14px;
+            border-radius: 15px; font-size: 12px;
+        }
+
+        /* === شريط التقدم === */
+        .progress-section { margin-bottom: 20px; }
+        .progress-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 8px;
+        }
+        .progress-header span { font-weight: bold; color: #2c3e50; }
+        .progress-count { font-size: 1.2rem; color: #3498db; }
+
+        .progress-bar-bg {
+            width: 100%; height: 10px;
+            background: #e0e0e0; border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        /* === دوائر الخطوات === */
+        .steps-row {
+            display: flex; justify-content: center;
+            gap: 15px; margin: 15px 0;
+        }
+        .step-circle {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 14px;
+            background: #e0e0e0; color: #999;
+            transition: all 0.3s;
+        }
+        .step-circle.active {
+            background: #3498db; color: white;
+            box-shadow: 0 2px 10px rgba(52,152,219,0.4);
+        }
+        .step-circle.done {
+            background: #2ecc71; color: white;
+        }
+
+        /* === الأزرار === */
+        .btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .btn-reg {
+            padding: 12px 30px; border: none; border-radius: 50px;
+            font-size: 15px; font-weight: bold; cursor: pointer;
+            transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-reg:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+
+        .btn-capture {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        .btn-capture:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(52,152,219,0.4); }
+
+        .btn-retake {
+            background: white; color: #e74c3c;
+            border: 2px solid #e74c3c;
+        }
+        .btn-retake:hover:not(:disabled) { background: #e74c3c; color: white; }
+
+        .btn-next {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+        }
+        .btn-next:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(155,89,182,0.4); }
+
+        .btn-back {
+            background: white; color: #7f8c8d;
+            border: 2px solid #bdc3c7;
+        }
+        .btn-back:hover { border-color: #7f8c8d; color: #2c3e50; }
+
+        /* === الرسائل === */
+        .msg-box {
+            padding: 12px 15px; border-radius: 8px;
+            margin: 15px 0; font-size: 14px;
+            display: none;
+        }
+        .msg-box.success { background: #d5f5e3; color: #1e8449; border: 1px solid #abebc6; display: block; }
+        .msg-box.error { background: #fadbd8; color: #c0392b; border: 1px solid #f5b7b1; display: block; }
+        .msg-box.info { background: #d6eaf8; color: #2471a3; border: 1px solid #aed6f1; display: block; }
+
+        .tip-box {
+            background: #fef9e7; border: 1px solid #f9e79f;
+            padding: 10px 15px; border-radius: 8px;
+            margin: 10px 0; font-size: 13px; color: #7d6608;
+        }
+
+        /* === اختيار الكاميرا === */
+        .camera-select-row {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 15px;
+        }
+        .camera-select-row label {
+            font-size: 13px; color: #555; font-weight: bold; white-space: nowrap;
+        }
+        .camera-select-row select {
+            flex: 1; padding: 6px 10px; border: 1px solid #ddd;
+            border-radius: 8px; font-size: 13px; font-family: 'Tajawal', Tahoma, sans-serif;
+            cursor: pointer; outline: none; background: white;
+        }
+        .camera-select-row select:focus { border-color: #3498db; }
+
+        /* === خطأ الكاميرا === */
+        .camera-error {
+            display: none;
+            text-align: center; padding: 40px 20px;
+        }
+        .camera-error h4 { color: #e74c3c; margin: 10px 0; }
+        .camera-error p { color: #666; font-size: 14px; }
+
+        /* === حالة الاكتمال === */
+        .completed-section {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+        .completed-section .big-icon { font-size: 4rem; margin-bottom: 15px; }
+        .completed-section h2 { color: #27ae60; margin-bottom: 10px; }
+        .completed-section p { color: #555; }
+
+        /* === Loading === */
+        .processing-overlay {
+            display: none;
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            justify-content: center; align-items: center;
+            flex-direction: column; color: white;
+        }
+        .processing-overlay.active { display: flex; }
+        .proc-spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="register-card">
+        <!-- العنوان -->
+        <h1>تسجيل وجهك الآن</h1>
+        <p class="subtitle">المستخدم: <span class="employee-name">{{ employee.name }}</span></p>
+
+        <!-- شريط التقدم -->
+        <div class="progress-section" id="progressSection">
+            <div class="progress-header">
+                <span>التقدم</span>
+                <span class="progress-count" id="progressCount">0 / {{ total_images }}</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+            <div class="steps-row" id="stepsRow">
+                {% for i in range(1, total_images + 1) %}
+                <div class="step-circle" id="step{{ i }}">{{ i }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- خطأ الكاميرا -->
+        <div class="camera-error" id="cameraError">
+            <h4>لا يمكن الوصول إلى الكاميرا</h4>
+            <p id="cameraErrorMsg">تأكد من إعطاء الإذن للكاميرا</p>
+            <button class="btn-reg btn-capture" onclick="startCamera()">حاول مرة أخرى</button>
+        </div>
+
+        <!-- اختيار الكاميرا -->
+        <div class="camera-select-row" id="cameraSelectRow" style="display:none;">
+            <label>📷 الكاميرا:</label>
+            <select id="cameraSelect" onchange="switchCamera()"></select>
+        </div>
+
+        <!-- الكاميرا -->
+        <div class="camera-wrapper" id="cameraWrapper" style="display:none;">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="face-overlay"></div>
+            <div class="face-guide"></div>
+            <div class="cam-badge" id="camBadge">جاري التشغيل...</div>
+            <div class="processing-overlay" id="processingOverlay">
+                <div class="proc-spinner"></div>
+                <span>جاري معالجة الصورة...</span>
+            </div>
+        </div>
+
+        <canvas id="canvas"></canvas>
+
+        <!-- الرسائل -->
+        <div class="msg-box" id="msgBox"></div>
+        <div class="tip-box" id="tipBox" style="display:none;"></div>
+
+        <!-- الأزرار -->
+        <div class="btn-row" id="captureBtns" style="display:none;">
+            <button class="btn-reg btn-capture" id="captureBtn" onclick="capturePhoto()">
+                التقط الصورة
+            </button>
+        </div>
+
+        <div class="btn-row" id="reviewBtns" style="display:none;">
+            <button class="btn-reg btn-retake" onclick="retakePhoto()">
+                إعادة التقاط
+            </button>
+            <button class="btn-reg btn-next" id="nextBtn" onclick="submitPhoto()">
+                التالي
+            </button>
+        </div>
+
+        <!-- حالة الاكتمال -->
+        <div class="completed-section" id="completedSection">
+            <div class="big-icon">✅</div>
+            <h2>تم تسجيل البصمة بنجاح!</h2>
+            <p id="completedMsg"></p>
+            <br>
+            <a href="{{ url_for('employees.employees') }}" class="btn-reg btn-capture" style="text-decoration:none;">
+                العودة للموظفين
+            </a>
+        </div>
+
+        <div style="text-align:center; margin-top:15px;">
+            <a href="{{ url_for('employees.employees') }}" class="btn-reg btn-back" style="text-decoration:none; font-size:13px;">
+                العودة بدون تسجيل
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/camera-utils.js') }}"></script>
+    <script>
+        const TOTAL_IMAGES = {{ total_images }};
+        let currentCount = 0;
+        let cameraReady = false;
+        let capturedImageData = null;
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const cameraError = document.getElementById('cameraError');
+        const cameraWrapper = document.getElementById('cameraWrapper');
+        const captureBtns = document.getElementById('captureBtns');
+        const reviewBtns = document.getElementById('reviewBtns');
+        const msgBox = document.getElementById('msgBox');
+        const tipBox = document.getElementById('tipBox');
+        const camBadge = document.getElementById('camBadge');
+        const processingOverlay = document.getElementById('processingOverlay');
+        const captureBtn = document.getElementById('captureBtn');
+
+        // ==========================================
+        // 1. تشغيل الكاميرا
+        // ==========================================
+        async function startCamera() {
+            cameraError.style.display = 'none';
+            cameraWrapper.style.display = 'none';
+            captureBtns.style.display = 'none';
+            cameraReady = false;
+
+            try {
+                const savedId = getSavedCameraId();
+                const constraints = {
+                    video: { width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false
+                };
+
+                if (savedId) {
+                    constraints.video.deviceId = { exact: savedId };
+                } else {
+                    constraints.video.facingMode = 'user';
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                await video.play();
+
+                cameraReady = true;
+                cameraWrapper.style.display = 'block';
+                captureBtns.style.display = 'flex';
+                camBadge.innerHTML = 'الكاميرا جاهزة';
+                showMsg('info', 'الكاميرا جاهزة - التقط الصورة الأولى');
+                updateStep(0);
+
+                // تحميل قائمة الكاميرات
+                const cameras = await populateCameraSelect(document.getElementById('cameraSelect'));
+                if (cameras.length > 1) {
+                    document.getElementById('cameraSelectRow').style.display = 'flex';
+                }
+
+            } catch (err) {
+                console.error('Camera error:', err);
+
+                // fallback إذا الكاميرا المحفوظة ما اشتغلت
+                if (err.name === 'OverconstrainedError' || err.name === 'NotFoundError') {
+                    try {
+                        saveSelectedCamera('');
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+                            audio: false
+                        });
+                        video.srcObject = stream;
+                        await video.play();
+                        cameraReady = true;
+                        cameraWrapper.style.display = 'block';
+                        captureBtns.style.display = 'flex';
+                        camBadge.innerHTML = 'الكاميرا جاهزة';
+                        showMsg('info', 'الكاميرا جاهزة - التقط الصورة الأولى');
+                        updateStep(0);
+                        const cameras = await populateCameraSelect(document.getElementById('cameraSelect'));
+                        if (cameras.length > 1) {
+                            document.getElementById('cameraSelectRow').style.display = 'flex';
+                        }
+                        return;
+                    } catch (e2) { err = e2; }
+                }
+
+                cameraError.style.display = 'block';
+                cameraWrapper.style.display = 'none';
+                captureBtns.style.display = 'none';
+
+                let msg = getCameraErrorMessage(err.name);
+                document.getElementById('cameraErrorMsg').textContent = msg;
+            }
+        }
+
+        // ==========================================
+        // 1b. تبديل الكاميرا
+        // ==========================================
+        async function switchCamera() {
+            const select = document.getElementById('cameraSelect');
+            const deviceId = select.value;
+            if (!deviceId) return;
+
+            saveSelectedCamera(deviceId);
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            cameraReady = false;
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, deviceId: { exact: deviceId } },
+                    audio: false
+                });
+                video.srcObject = stream;
+                await video.play();
+                cameraReady = true;
+                camBadge.innerHTML = 'الكاميرا جاهزة';
+            } catch (err) {
+                console.error('Camera switch error:', err);
+                showMsg('error', 'خطأ في تشغيل الكاميرا المحددة');
+                saveSelectedCamera('');
+                startCamera();
+            }
+        }
+
+        // ==========================================
+        // 2. التقاط الصورة
+        // ==========================================
+        // قص الصورة لمنطقة الدائرة الدليلية فقط (دالة مشتركة من camera-utils.js)
+        // default params: widthRatio=0.50, heightRatio=0.65, margin=1.15
+
+        function capturePhoto() {
+            if (!cameraReady) return;
+
+            // قص الصورة لمنطقة الدائرة الدليلية فقط
+            capturedImageData = cropToGuideRegion(video);
+
+            cameraWrapper.style.display = 'none';
+            captureBtns.style.display = 'none';
+            reviewBtns.style.display = 'flex';
+
+            showMsg('info', 'تم التقاط الصورة - اضغط "التالي" للحفظ أو "إعادة التقاط" لإعادة المحاولة');
+        }
+
+        // ==========================================
+        // 3. إعادة التقاط
+        // ==========================================
+        function retakePhoto() {
+            capturedImageData = null;
+            cameraWrapper.style.display = 'block';
+            captureBtns.style.display = 'flex';
+            reviewBtns.style.display = 'none';
+            msgBox.style.display = 'none';
+            camBadge.innerHTML = 'الكاميرا جاهزة';
+        }
+
+        // ==========================================
+        // 4. إرسال الصورة للسيرفر
+        // ==========================================
+        function submitPhoto() {
+            if (!capturedImageData) return;
+
+            const nextBtn = document.getElementById('nextBtn');
+            nextBtn.disabled = true;
+            processingOverlay.classList.add('active');
+            camBadge.innerHTML = 'جاري المعالجة...';
+
+            fetch('{{ url_for("face.register_face", id=employee.id) }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: capturedImageData })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('خطأ في الخادم: ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                processingOverlay.classList.remove('active');
+                nextBtn.disabled = false;
+
+                if (data.success) {
+                    if (data.status === 'completed') {
+                        currentCount = TOTAL_IMAGES;
+                        updateProgress();
+                        cameraWrapper.style.display = 'none';
+                        reviewBtns.style.display = 'none';
+                        document.getElementById('progressSection').style.display = 'none';
+                        msgBox.style.display = 'none';
+                        tipBox.style.display = 'none';
+                        document.getElementById('completedSection').style.display = 'block';
+                        document.getElementById('completedMsg').textContent =
+                            'تم تسجيل ' + TOTAL_IMAGES + ' صور بنجاح للموظف {{ employee.name }}';
+
+                        stopStream(video);
+
+                    } else if (data.status === 'collecting') {
+                        currentCount = data.count;
+                        updateProgress();
+                        showMsg('success', data.message);
+
+                        if (data.count < TOTAL_IMAGES) {
+                            const tips = {
+                                1: 'التقط صورة من زاوية مختلفة (مثلاً مع إمالة بسيطة)',
+                                2: 'التقط صورة بإضاءة مختلفة قليلاً',
+                                3: 'التقط صورة مع ابتسامة خفيفة',
+                                4: 'التقط صورة بتعبير محايد',
+                            };
+                            tipBox.textContent = tips[data.count] || 'التقط صورة أخرى بزاوية مختلفة';
+                            tipBox.style.display = 'block';
+                        }
+
+                        capturedImageData = null;
+                        cameraWrapper.style.display = 'block';
+                        captureBtns.style.display = 'flex';
+                        reviewBtns.style.display = 'none';
+                        camBadge.innerHTML = 'الصورة ' + data.count + ' / ' + TOTAL_IMAGES;
+                    }
+
+                } else {
+                    showMsg('error', data.message);
+                    capturedImageData = null;
+                    cameraWrapper.style.display = 'block';
+                    captureBtns.style.display = 'flex';
+                    reviewBtns.style.display = 'none';
+                    camBadge.innerHTML = 'حاول مرة أخرى';
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                processingOverlay.classList.remove('active');
+                nextBtn.disabled = false;
+                showMsg('error', 'خطأ في الاتصال: ' + err.message);
+
+                capturedImageData = null;
+                cameraWrapper.style.display = 'block';
+                captureBtns.style.display = 'flex';
+                reviewBtns.style.display = 'none';
+                camBadge.innerHTML = 'خطأ - حاول مرة أخرى';
+            });
+        }
+
+        // ==========================================
+        // 5. تحديث شريط التقدم والدوائر
+        // ==========================================
+        function updateProgress() {
+            const percent = (currentCount / TOTAL_IMAGES) * 100;
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressCount').textContent = currentCount + ' / ' + TOTAL_IMAGES;
+
+            for (let i = 1; i <= TOTAL_IMAGES; i++) {
+                const circle = document.getElementById('step' + i);
+                if (i <= currentCount) {
+                    circle.className = 'step-circle done';
+                    circle.innerHTML = '&#10003;';
+                } else if (i === currentCount + 1) {
+                    circle.className = 'step-circle active';
+                    circle.innerHTML = i;
+                } else {
+                    circle.className = 'step-circle';
+                    circle.innerHTML = i;
+                }
+            }
+        }
+
+        function updateStep(count) {
+            currentCount = count;
+            updateProgress();
+        }
+
+        // ==========================================
+        // 6. إظهار الرسائل
+        // ==========================================
+        function showMsg(type, text) {
+            msgBox.className = 'msg-box ' + type;
+            msgBox.textContent = text;
+            msgBox.style.display = 'block';
+        }
+
+        // ==========================================
+        // 7. تشغيل الكاميرا عند التحميل
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            startCamera();
+        });
+
+        // ==========================================
+        // 8. تنظيف عند المغادرة
+        // ==========================================
+        window.addEventListener('beforeunload', function() {
+            stopStream(video);
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}الموظفين{% endblock %}
+
+{% block styles %}
+    <style>
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .btn-add {
+            background: #27ae60; color: white; padding: 10px 20px;
+            text-decoration: none; border-radius: 5px; font-size: 14px;
+        }
+        .btn-add:hover { background: #219a52; }
+
+        /* أزرار الإجراءات */
+        .action-btns {
+            display: flex; gap: 6px; flex-wrap: nowrap; align-items: center;
+            min-width: max-content;
+        }
+        .btn-view {
+            background: #3498db; color: white; padding: 5px 12px;
+            border-radius: 4px; text-decoration: none; font-size: 12px;
+            white-space: nowrap; display: inline-block; text-align: center;
+            transition: background 0.2s;
+        }
+        .btn-view:hover { background: #2980b9; }
+        .btn-edit {
+            background: #f39c12; color: white; padding: 5px 12px;
+            border-radius: 4px; text-decoration: none; font-size: 12px;
+            white-space: nowrap; display: inline-block; text-align: center;
+            transition: background 0.2s;
+        }
+        .btn-edit:hover { background: #d68910; }
+        .btn-face {
+            background: #9b59b6; color: white; padding: 5px 12px;
+            border-radius: 4px; text-decoration: none; font-size: 12px;
+            white-space: nowrap; display: inline-block; text-align: center;
+            transition: background 0.2s;
+        }
+        .btn-face:hover { background: #8e44ad; }
+        .btn-delete {
+            background: #e74c3c; color: white; padding: 5px 12px;
+            border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
+            white-space: nowrap; display: inline-block; text-align: center;
+            transition: background 0.2s;
+        }
+        .btn-delete:hover { background: #c0392b; }
+        .badge-active { background: #27ae60; }
+        .badge-inactive { background: #e74c3c; }
+        .face-yes { color: #27ae60; font-size: 12px; }
+        .face-no { color: #e74c3c; font-size: 12px; }
+
+        /* فلتر الحالة */
+        .filter-bar {
+            display: flex; gap: 10px; align-items: center;
+            margin-bottom: 15px; padding: 10px 15px;
+            background: white; border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .filter-bar label {
+            font-weight: bold; color: #555; font-size: 14px;
+        }
+        .filter-btn {
+            padding: 6px 16px; border: 2px solid #ddd; border-radius: 20px;
+            background: white; cursor: pointer; font-family: inherit;
+            font-size: 13px; color: #555; transition: all 0.2s;
+        }
+        .filter-btn:hover { border-color: #3498db; color: #3498db; }
+        .filter-btn.active {
+            background: #3498db; color: white; border-color: #3498db;
+        }
+        .filter-btn.active-all { background: #2c3e50; border-color: #2c3e50; }
+        .filter-btn.active-active { background: #27ae60; border-color: #27ae60; }
+        .filter-btn.active-inactive { background: #e74c3c; border-color: #e74c3c; }
+        .filter-count {
+            font-size: 12px; color: #999; margin-right: auto;
+        }
+
+        /* صف غير نشط */
+        tr.row-inactive { background: #fff5f5; }
+        tr.row-inactive td { opacity: 0.75; }
+        tr.row-inactive td:first-child,
+        tr.row-inactive td:nth-child(2) { opacity: 1; }
+
+        /* تنبيه الموظف غير النشط مع بصمة وجه */
+        .inactive-face-warning {
+            display: inline-block;
+            background: #fff3cd; color: #856404;
+            padding: 1px 6px; border-radius: 4px;
+            font-size: 10px; margin-right: 3px;
+        }
+
+        /* خلية الاسم */
+        .emp-name-cell {
+            max-width: 200px;
+            min-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .emp-name-cell .emp-name {
+            display: block; font-weight: bold; margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+        .emp-name-cell .emp-detail {
+            display: block; font-size: 11px; color: #888;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+
+        /* خلايا الجدول */
+        .table-box { overflow-x: auto; }
+        table {
+            min-width: 1000px;
+            table-layout: auto;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            white-space: nowrap;
+            padding: 10px 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* خلية القسم والوظيفة */
+        td:nth-child(3), td:nth-child(4) {
+            max-width: 150px;
+        }
+        /* خلية الإجراءات */
+        td:nth-child(8) {
+            white-space: normal;
+            min-width: 220px;
+            overflow: visible;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>الموظفين</h1>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <a href="{{ url_for('reports.import_employees') }}" style="background:#f39c12; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; font-size:14px;">استيراد من Excel</a>
+            <a href="{{ url_for('reports.export_employees') }}" style="background:#3498db; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; font-size:14px;">تصدير Excel</a>
+            <a href="{{ url_for('employees.employee_add') }}" class="btn-add">إضافة موظف</a>
+        </div>
+    </div>
+
+    <!-- فلتر الحالة -->
+    <div class="filter-bar">
+        <label>تصفية:</label>
+        <button class="filter-btn active-all active" onclick="filterEmployees('all')">الكل</button>
+        <button class="filter-btn" onclick="filterEmployees('active')">نشط</button>
+        <button class="filter-btn" onclick="filterEmployees('inactive')">غير نشط</button>
+        <span class="filter-count" id="filterCount">يعرض {{ employees|length }} موظف</span>
+    </div>
+
+    <div class="table-box">
+        <table>
+            <thead>
+                <tr>
+                    <th>الرقم الوظيفي</th>
+                    <th>الاسم</th>
+                    <th>القسم</th>
+                    <th>الوظيفة</th>
+                    <th>تاريخ التوظيف</th>
+                    <th>الحالة</th>
+                    <th>بصمة الوجه</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in employees %}
+                <tr class="{% if emp.status != 'active' %}row-inactive{% endif %}" data-status="{{ emp.status }}">
+                    <td>{{ emp.employee_id }}</td>
+                    <td class="emp-name-cell">
+                        <span class="emp-name">{{ emp.name }}</span>
+                        {% if emp.status != 'active' and emp.face_encoding %}
+                            <span class="inactive-face-warning">بصمة معطلة</span>
+                        {% endif %}
+                        {% if emp.status != 'active' and emp.deactivation_reason %}
+                            <span class="emp-detail" style="color:#e74c3c;">{{ emp.deactivation_reason }}{% if emp.deactivation_date %} ({{ emp.deactivation_date.strftime('%Y-%m-%d') }}){% endif %}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ emp.department.name if emp.department else '-' }}</td>
+                    <td>{{ emp.position or '-' }}</td>
+                    <td>{% if emp.hire_date %}{{ emp.hire_date.strftime('%Y-%m-%d') }}{% else %}-{% endif %}</td>
+                    <td>
+                        {% if emp.status == 'active' %}
+                            <span class="badge badge-active">نشط</span>
+                        {% else %}
+                            <span class="badge badge-inactive">غير نشط</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if emp.face_encoding %}
+                            {% if emp.status == 'active' %}
+                                <span class="face-yes">مسجلة</span>
+                            {% else %}
+                                <span class="face-no">معطلة</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="face-no">لا</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-btns">
+                            <a href="{{ url_for('employees.employee_view', id=emp.id) }}" class="btn-view">عرض</a>
+                            <a href="{{ url_for('employees.employee_edit', id=emp.id) }}" class="btn-edit">تعديل</a>
+                            {% if not emp.face_encoding %}
+                            <a href="{{ url_for('face.register_face_page', id=emp.id) }}" class="btn-face">بصمة</a>
+                            {% else %}
+                            <a href="{{ url_for('face.register_face_page', id=emp.id) }}" class="btn-face" style="background:#f39c12;">إعادة</a>
+                            {% endif %}
+                            <form action="{{ url_for('employees.employee_delete', id=emp.id) }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn-delete" onclick="return confirm('هل أنت متأكد من حذف هذا الموظف؟')">حذف</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align:center; color:#999; padding:30px;">لا يوجد موظفون</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function filterEmployees(filter) {
+            const rows = document.querySelectorAll('tbody tr[data-status]');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const status = row.getAttribute('data-status');
+                if (filter === 'all' || (filter === 'active' && status === 'active') || (filter === 'inactive' && status !== 'active')) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active', 'active-all', 'active-active', 'active-inactive');
+            });
+
+            const activeBtn = event.target;
+            activeBtn.classList.add('active');
+            if (filter === 'all') activeBtn.classList.add('active-all');
+            else if (filter === 'active') activeBtn.classList.add('active-active');
+            else if (filter === 'inactive') activeBtn.classList.add('active-inactive');
+
+            document.getElementById('filterCount').textContent = 'يعرض ' + visibleCount + ' موظف';
+        }
+    </script>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}سجل النشاط{% endblock %}
+{% block styles %}
+<style>
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.filter-bar { display: flex; gap: 10px; margin-bottom: 15px; padding: 10px 15px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); align-items: center; flex-wrap: wrap; }
+.filter-bar select, .filter-bar input { padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit; }
+.filter-bar a { background: #95a5a6; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-size: 13px; }
+.badge-create { background: #27ae60; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+.badge-update { background: #3498db; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+.badge-delete { background: #e74c3c; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+.badge-login { background: #9b59b6; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+.badge-logout { background: #7f8c8d; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+.badge-login_failed { background: #c0392b; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+.pagination { display: flex; gap: 5px; justify-content: center; margin-top: 20px; }
+.pagination a, .pagination span { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #333; font-size: 13px; }
+.pagination .active { background: #3498db; color: white; border-color: #3498db; }
+.security-summary { display: flex; gap: 15px; margin-bottom: 15px; }
+.security-card { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex: 1; border-right: 4px solid #3498db; }
+.security-card.danger { border-right-color: #e74c3c; }
+.security-card h3 { margin: 0 0 5px 0; font-size: 13px; color: #7f8c8d; font-weight: normal; }
+.security-card .number { font-size: 24px; font-weight: bold; color: #2c3e50; }
+.security-card.danger .number { color: #e74c3c; }
+.row-failed { background-color: #fdf2f2; }
+.row-success { background-color: #f8fbf8; }
+.status-icon { font-weight: bold; }
+.status-success { color: #27ae60; }
+.status-failed { color: #e74c3c; }
+.ua-cell { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #7f8c8d; }
+.ua-cell:hover { white-space: normal; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>سجل النشاط والمراقبة الأمنية</h1>
+</div>
+
+<!-- ملخص أمني سريع -->
+<div class="security-summary">
+    <div class="security-card danger">
+        <h3>إجمالي المحاولات الفاشلة</h3>
+        <div class="number">{{ total_failed }}</div>
+    </div>
+    <div class="security-card danger">
+        <h3>عناوين IP مشبوهة (فاشلة)</h3>
+        <div class="number">{{ distinct_ips_failed }}</div>
+    </div>
+    <div class="security-card" style="border-right-color: #c0392b;">
+        <h3>عناوين IP محظورة حالياً</h3>
+        <div class="number">{{ blocked_ips|length }}</div>
+    </div>
+</div>
+
+<!-- ====== قسم إدارة IPs المحظورة ====== -->
+<div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px;">
+    <h3 style="margin-top:0; color:#c0392b;">🚫 إدارة عناوين IP المحظورة</h3>
+    
+    <!-- نموذج حظر IP جديد -->
+    <form method="POST" action="{{ url_for('audit.block_ip') }}" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="ip_address" placeholder="عنوان IP (مثال: 192.168.1.100)" required 
+               style="padding:8px; border:1px solid #ddd; border-radius:5px; flex:1; min-width:200px;">
+        <input type="text" name="reason" placeholder="سبب الحظر (اختياري)" 
+               style="padding:8px; border:1px solid #ddd; border-radius:5px; flex:2; min-width:250px;">
+        <button type="submit" style="padding:8px 20px; background:#c0392b; color:white; border:none; border-radius:5px; cursor:pointer;">🚫 حظر</button>
+    </form>
+    
+    <!-- قائمة IPs المحظورة -->
+    {% if blocked_ips %}
+    <table style="width:100%; font-size:13px;">
+        <thead>
+            <tr style="background:#f8f9fa;">
+                <th style="padding:8px; text-align:right;">عنوان IP</th>
+                <th style="padding:8px; text-align:right;">السبب</th>
+                <th style="padding:8px; text-align:right;">تاريخ الحظر</th>
+                <th style="padding:8px; text-align:right;">الإجراء</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for blocked in blocked_ips %}
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:8px; font-family:monospace; color:#c0392b; font-weight:bold;">{{ blocked.ip_address }}</td>
+                <td style="padding:8px;">{{ blocked.reason or '-' }}</td>
+                <td style="padding:8px; font-size:12px;">{{ blocked.blocked_at.strftime('%Y-%m-%d %H:%M') if blocked.blocked_at else '-' }}</td>
+                <td style="padding:8px;">
+                    <form method="POST" action="{{ url_for('audit.unblock_ip', blocked_id=blocked.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" style="padding:5px 12px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">✅ فك الحظر</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#7f8c8d; text-align:center; padding:15px;">لا توجد عناوين IP محظورة حالياً</p>
+    {% endif %}
+</div>
+
+<!-- ====== فلترة السجل ====== -->
+<div class="filter-bar">
+    <label>الإجراء:</label>
+    <select onchange="location.href='{{ url_for('audit.audit_log') }}?action='+this.value+'&entity={{ entity_filter }}&status={{ status_filter }}&ip={{ ip_filter }}'">
+        <option value="">الكل</option>
+        <option value="create" {% if action_filter == 'create' %}selected{% endif %}>إضافة</option>
+        <option value="update" {% if action_filter == 'update' %}selected{% endif %}>تعديل</option>
+        <option value="delete" {% if action_filter == 'delete' %}selected{% endif %}>حذف</option>
+        <option value="login" {% if action_filter == 'login' %}selected{% endif %}>دخول ناجح</option>
+        <option value="login_failed" {% if action_filter == 'login_failed' %}selected{% endif %}>دخول فاشل</option>
+        <option value="logout" {% if action_filter == 'logout' %}selected{% endif %}>خروج</option>
+        <option value="block_ip" {% if action_filter == 'block_ip' %}selected{% endif %}>حظر IP</option>
+        <option value="unblock_ip" {% if action_filter == 'unblock_ip' %}selected{% endif %}>فك حظر</option>
+    </select>
+    <label>الحالة:</label>
+    <select onchange="location.href='{{ url_for('audit.audit_log') }}?status='+this.value+'&action={{ action_filter }}&entity={{ entity_filter }}&ip={{ ip_filter }}'">
+        <option value="">الكل</option>
+        <option value="success" {% if status_filter == 'success' %}selected{% endif %}>ناجح</option>
+        <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>فاشل</option>
+    </select>
+    <label>IP:</label>
+    <input type="text" value="{{ ip_filter }}" placeholder="مثال: 192.168" style="width:120px; padding:8px; border:1px solid #ddd; border-radius:5px;" onkeydown="if(event.key==='Enter'){location.href='{{ url_for('audit.audit_log') }}?ip='+this.value+'&action={{ action_filter }}&status={{ status_filter }}';}">
+    <a href="{{ url_for('audit.audit_log') }}" style="background:#95a5a6; color:white; padding:8px 15px; text-decoration:none; border-radius:5px; font-size:13px;">مسح الفلتر</a>
+</div>
+
+<!-- ====== سجل المحاولات ====== -->
+<div class="table-box">
+    <table>
+        <thead>
+            <tr>
+                <th>الوقت</th>
+                <th>المستخدم</th>
+                <th>الإجراء</th>
+                <th>الحالة</th>
+                <th>IP</th>
+                <th>التفاصيل</th>
+                <th>إجراء سريع</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs.items %}
+            <tr class="{{ 'row-failed' if not log.success else 'row-success' }}">
+                <td style="font-size:12px;">{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ log.user_name or '-' }}</td>
+                <td><span class="badge-{{ log.action }}">{{ {'create': 'إضافة', 'update': 'تعديل', 'delete': 'حذف', 'login': 'دخول', 'login_failed': 'فاشل', 'logout': 'خروج', 'block_ip': 'حظر IP', 'unblock_ip': 'فك حظر'}.get(log.action, log.action) }}</span></td>
+                <td class="status-icon">{% if log.success %}<span class="status-success">✓</span>{% else %}<span class="status-failed">✗</span>{% endif %}</td>
+                <td style="font-size:12px; font-family: monospace;">{{ log.ip_address or '-' }}</td>
+                <td style="font-size:13px;">{{ log.description or '-' }}</td>
+                <td style="font-size:12px;">
+                    {% if not log.success and log.ip_address and log.action == 'login_failed' %}
+                    <form method="POST" action="{{ url_for('audit.block_ip') }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="ip_address" value="{{ log.ip_address }}">
+                        <button type="submit" style="padding:3px 8px; background:#c0392b; color:white; border:none; border-radius:3px; cursor:pointer; font-size:11px;">🚫 حظر</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" style="text-align:center;color:#999;padding:30px;">لا توجد سجلات</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if logs.has_prev or logs.has_next %}
+<div class="pagination">
+    {% if logs.has_prev %}<a href="{{ url_for('audit.audit_log', page=logs.prev_num, action=action_filter, status=status_filter, ip=ip_filter) }}">السابق</a>{% endif %}
+    <span class="active">{{ logs.page }}</span>
+    {% if logs.has_next %}<a href="{{ url_for('audit.audit_log', page=logs.next_num, action=action_filter, status=status_filter, ip=ip_filter) }}">التالي</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

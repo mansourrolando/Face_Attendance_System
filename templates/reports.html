@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block title %}التقارير{% endblock %}
+
+{% block styles %}
+    <style>
+        .reports-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .filter-box {
+            background: white; border-radius: 8px; padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px;
+        }
+        .filter-row {
+            display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;
+        }
+        .filter-group { margin-bottom: 10px; }
+        .filter-group label {
+            display: block; margin-bottom: 5px; color: #555;
+            font-size: 13px; font-weight: bold;
+        }
+        .filter-group input, .filter-group select {
+            padding: 8px 12px; border: 1px solid #ddd;
+            border-radius: 5px; font-family: inherit; min-width: 150px;
+        }
+        .btn-filter {
+            background: #3498db; color: white; padding: 9px 25px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+        }
+        .btn-filter:hover { background: #2980b9; }
+        .btn-export {
+            background: #27ae60; color: white; padding: 9px 25px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+            text-decoration: none; display: inline-block;
+        }
+        .btn-export:hover { background: #219a52; }
+        .summary-cards {
+            display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .summary-card {
+            background: white; padding: 15px; border-radius: 8px;
+            flex: 1; min-width: 100px; text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-top: 3px solid #3498db;
+        }
+        .summary-card h2 { color: #333; font-size: 24px; }
+        .summary-card p { color: #777; font-size: 12px; margin-top: 5px; }
+        .summary-card.present { border-top-color: #27ae60; }
+        .summary-card.late { border-top-color: #e67e22; }
+        .summary-card.leave { border-top-color: #3498db; }
+        .summary-card.absent-justified { border-top-color: #e67e22; }
+        .summary-card.absent-unjustified { border-top-color: #c0392b; }
+        .summary-card.admin-task { border-top-color: #8e44ad; }
+        .summary-card.overtime { border-top-color: #f39c12; }
+        .summary-card.early-checkout { border-top-color: #c0392b; }
+
+        /* ===== شارات الحالات الموحدة ===== */
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; border-radius: 6px;
+            font-size: 12px; font-weight: bold; color: white;
+            white-space: nowrap;
+        }
+        .status-badge .sub-badge {
+            display: inline-block; padding: 1px 6px; border-radius: 3px;
+            font-size: 10px; font-weight: bold;
+            background: rgba(255,255,255,0.3);
+        }
+        .badge-present { background: #27ae60; }
+        .badge-late { background: #e67e22; }
+        .badge-leave { background: #3498db; }
+        .badge-absent-justified { background: #e67e22; }
+        .badge-absent-unjustified { background: #c0392b; }
+        .badge-admin-task { background: #8e44ad; }
+        .badge-overtime { background: #f39c12; }
+        .badge-early-checkout { background: #c0392b; }
+
+        /* ألوان إضافية لأنواع الإجازات */
+        .sub-paid { background: #1e8449 !important; }
+        .sub-unpaid { background: #c0392b !important; }
+        .sub-medical { background: #2471a3 !important; }
+        .sub-maternity { background: #7d3c98 !important; }
+        .sub-hourly { background: #d68910 !important; }
+
+        /* ألوان إضافية لأنواع الغياب */
+        .sub-justified { background: rgba(255,255,255,0.35) !important; }
+        .sub-unjustified { background: rgba(255,255,255,0.35) !important; }
+
+        /* صف المهام بلون خلفية مختلف */
+        tr.task-row { background-color: #faf8ff; }
+        tr.task-row:hover { background-color: #f0ecff; }
+
+        /* تصفية الموظفين حسب القسم - تتم عبر JavaScript */
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="reports-header">
+        <h1>التقارير</h1>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <a href="{{ url_for('reports.export_reports', **request.args) }}" class="btn-export">تصدير Excel</a>
+            <a href="{{ url_for('reports.export_payroll', **request.args) }}" class="btn-export" style="background:#8e44ad;">بيانات الرواتب</a>
+            <a href="{{ url_for('reports.reports_print', **request.args) }}" class="btn-export" style="background:#27ae60;" target="_blank">طباعة</a>
+        </div>
+    </div>
+
+    <!-- فلاتر البحث -->
+    <div class="filter-box">
+        <form method="GET" action="{{ url_for('reports.reports') }}">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>من تاريخ</label>
+                    <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}">
+                </div>
+                <div class="filter-group">
+                    <label>إلى تاريخ</label>
+                    <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}">
+                </div>
+                <div class="filter-group">
+                    <label>الموظف</label>
+                    <select name="employee_id" id="employeeFilter">
+                        <option value="" data-dept="">كل الموظفين</option>
+                        <optgroup label="نشط">
+                            {% for emp in employees %}
+                            {% if emp.status == 'active' %}
+                            <option value="{{ emp.id }}" data-dept="{{ emp.department_id or '' }}" {% if request.args.get('employee_id')|int == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="غير نشط">
+                            {% for emp in employees %}
+                            {% if emp.status != 'active' %}
+                            <option value="{{ emp.id }}" data-dept="{{ emp.department_id or '' }}" {% if request.args.get('employee_id')|int == emp.id %}selected{% endif %}>{{ emp.name }} (غير نشط)</option>
+                            {% endif %}
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>القسم</label>
+                    <select name="department_id" id="departmentFilter">
+                        <option value="">كل الأقسام</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if request.args.get('department_id')|int == dept.id %}selected{% endif %}>{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>الحالة</label>
+                    <select name="status">
+                        <option value="">كل الحالات</option>
+                        <option value="present" {% if request.args.get('status') == 'present' %}selected{% endif %}>حاضر</option>
+                        <option value="late" {% if request.args.get('status') == 'late' %}selected{% endif %}>متأخر</option>
+                        <optgroup label="إجازة">
+                            <option value="leave" {% if request.args.get('status') == 'leave' %}selected{% endif %}>كل الإجازات</option>
+                            <option value="leave_paid" {% if request.args.get('status') == 'leave_paid' %}selected{% endif %}>إجازة مأجورة</option>
+                            <option value="leave_unpaid" {% if request.args.get('status') == 'leave_unpaid' %}selected{% endif %}>إجازة بلا راتب</option>
+                            <option value="leave_medical" {% if request.args.get('status') == 'leave_medical' %}selected{% endif %}>إجازة صحية</option>
+                            <option value="leave_maternity" {% if request.args.get('status') == 'leave_maternity' %}selected{% endif %}>إجازة أمومة</option>
+                            <option value="leave_hourly" {% if request.args.get('status') == 'leave_hourly' %}selected{% endif %}>إجازة ساعية</option>
+                        </optgroup>
+                        <optgroup label="غياب">
+                            <option value="absent" {% if request.args.get('status') == 'absent' %}selected{% endif %}>كل الغياب</option>
+                            <option value="absent_justified" {% if request.args.get('status') == 'absent_justified' %}selected{% endif %}>غياب مبرر</option>
+                            <option value="absent_unjustified" {% if request.args.get('status') == 'absent_unjustified' %}selected{% endif %}>غياب غير مبرر</option>
+                        </optgroup>
+                        <optgroup label="المهام والعمل الإضافي">
+                            <option value="admin_task" {% if request.args.get('status') == 'admin_task' %}selected{% endif %}>مهمة إدارية</option>
+                            <option value="overtime" {% if request.args.get('status') == 'overtime' %}selected{% endif %}>عمل إضافي</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>حالة الموظف</label>
+                    <select name="emp_status">
+                        <option value="">الكل</option>
+                        <option value="active" {% if request.args.get('emp_status') == 'active' %}selected{% endif %}>نشط فقط</option>
+                        <option value="not_active" {% if request.args.get('emp_status') == 'not_active' %}selected{% endif %}>غير نشط فقط</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button type="submit" class="btn-filter">بحث</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- بطاقات الملخص -->
+    <div class="summary-cards">
+        <div class="summary-card present">
+            <h2>{{ summary.present }}</h2>
+            <p>حاضر</p>
+        </div>
+        <div class="summary-card late">
+            <h2>{{ summary.late }}</h2>
+            <p>متأخر</p>
+        </div>
+        <div class="summary-card leave">
+            <h2>{{ summary.leave }}</h2>
+            <p>إجازة</p>
+        </div>
+        <div class="summary-card absent-justified">
+            <h2>{{ summary.absent_justified }}</h2>
+            <p>غياب مبرر</p>
+        </div>
+        <div class="summary-card absent-unjustified">
+            <h2>{{ summary.absent_unjustified }}</h2>
+            <p>غياب غير مبرر</p>
+        </div>
+        <div class="summary-card admin-task">
+            <h2>{{ summary.admin_task }}</h2>
+            <p>مهمة إدارية</p>
+        </div>
+        <div class="summary-card overtime">
+            <h2>{{ summary.overtime }}</h2>
+            <p>عمل إضافي</p>
+        </div>
+        <div class="summary-card early-checkout">
+            <h2>{{ summary.total_early_checkout }}</h2>
+            <p>انصراف مبكر</p>
+        </div>
+    </div>
+
+    <!-- جدول النتائج -->
+    <div class="table-box">
+        <table>
+            <thead>
+                <tr>
+                    <th>الموظف</th>
+                    <th>القسم</th>
+                    <th>التاريخ</th>
+                    <th>حضور</th>
+                    <th>انصراف</th>
+                    <th>خروج إجازة</th>
+                    <th>رجوع إجازة</th>
+                    <th>مدة الإجازة</th>
+                    <th>الحالة</th>
+                    <th>انصراف مبكر</th>
+                    <th>الوصف</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                {% if record.record_type == 'attendance' %}
+                <tr>
+                    <td>
+                        {{ record.employee.name if record.employee else '-' }}
+                        {% if record.employee and record.employee.status != 'active' %}
+                            <span style="display:inline-block; background:#e74c3c; color:white; padding:1px 6px; border-radius:3px; font-size:10px; margin-right:4px;">غير نشط</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ record.employee.department.name if record.employee and record.employee.department else '-' }}</td>
+                    <td>{{ record.date }}</td>
+                    <td>{{ record.time_in.strftime('%H:%M') if record.time_in else '-' }}</td>
+                    <td>{{ record.time_out.strftime('%H:%M') if record.time_out else '-' }}</td>
+                    <td>{{ record.leave_out.strftime('%H:%M') if record.leave_out else '-' }}</td>
+                    <td>{{ record.leave_in.strftime('%H:%M') if record.leave_in else '-' }}</td>
+                    <td>{{ record.hourly_leave_duration if record.hourly_leave_duration else '-' }}</td>
+                    <td>
+                        {% if record.status == 'present' %}
+                            <span class="status-badge badge-present">حاضر</span>
+                        {% elif record.status == 'late' %}
+                            <span class="status-badge badge-late">متأخر</span>
+                        {% elif record.status == 'leave' %}
+                            {% set lt = leave_types.get('att_' ~ record.id|string) %}
+                            {% if lt == 'paid' %}
+                                <span class="status-badge badge-leave">إجازة <span class="sub-badge sub-paid">مأجورة</span></span>
+                            {% elif lt == 'unpaid' %}
+                                <span class="status-badge badge-leave">إجازة <span class="sub-badge sub-unpaid">بلا راتب</span></span>
+                            {% elif lt == 'medical' %}
+                                <span class="status-badge badge-leave">إجازة <span class="sub-badge sub-medical">صحية</span></span>
+                            {% elif lt == 'maternity' %}
+                                <span class="status-badge badge-leave">إجازة <span class="sub-badge sub-maternity">أمومة</span></span>
+                            {% elif lt == 'hourly' %}
+                                <span class="status-badge badge-leave">إجازة <span class="sub-badge sub-hourly">ساعية</span></span>
+                            {% else %}
+                                <span class="status-badge badge-leave">إجازة</span>
+                            {% endif %}
+                        {% elif record.status == 'absent' %}
+                            {% if record.absence_type == 'justified' %}
+                                <span class="status-badge badge-absent-justified">غياب مبرر</span>
+                            {% else %}
+                                <span class="status-badge badge-absent-unjustified">غياب غير مبرر</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="status-badge" style="background:#7f8c8d;">{{ record.status }}</span>
+                        {% endif %}
+                        {% if record.early_checkout %}
+                            <span class="status-badge badge-early-checkout" style="margin-right:3px; font-size:10px;">مبكر</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if record.early_checkout and record.early_checkout_minutes > 0 %}
+                            <span style="color:#c0392b; font-weight:bold;">{{ record.early_checkout_minutes }} دقيقة</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ record.description if record.description else '-' }}</td>
+                    <td>
+                        <a href="{{ url_for('attendance_manage.attendance_edit', id=record.id) }}" style="background:#f39c12; color:white; padding:3px 10px; border-radius:3px; text-decoration:none; font-size:11px;">تعديل</a>
+                        <form action="{{ url_for('attendance_manage.attendance_delete', id=record.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('هل أنت متأكد من حذف هذا السجل؟')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" style="background:#e74c3c; color:white; padding:3px 10px; border:none; border-radius:3px; cursor:pointer; font-size:11px;">حذف</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr class="task-row">
+                    <td>
+                        {{ record.employee.name if record.employee else '-' }}
+                        {% if record.employee and record.employee.status != 'active' %}
+                            <span style="display:inline-block; background:#e74c3c; color:white; padding:1px 6px; border-radius:3px; font-size:10px; margin-right:4px;">غير نشط</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ record.employee.department.name if record.employee and record.employee.department else '-' }}</td>
+                    <td>{{ record.date }}</td>
+                    <td>{{ record.time_in.strftime('%H:%M') if record.time_in else '-' }}</td>
+                    <td>{{ record.time_out.strftime('%H:%M') if record.time_out else '-' }}</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>{% if record.total_hours %}{{ record.total_hours }}{% else %}-{% endif %}</td>
+                    <td>
+                        {% if record.status == 'admin_task' %}
+                            <span class="status-badge badge-admin-task">مهمة إدارية</span>
+                        {% else %}
+                            <span class="status-badge badge-overtime">عمل إضافي</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ record.description if record.description else '-' }}</td>
+                    <td>-</td>
+                </tr>
+                {% endif %}
+                {% else %}
+                <tr>
+                    <td colspan="12" style="text-align:center; color:#999; padding:30px;">لا توجد سجلات مطابقة للبحث</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // فلترة الموظفين حسب القسم المختار
+        const deptFilter = document.getElementById('departmentFilter');
+        const empFilter = document.getElementById('employeeFilter');
+
+        // حفظ كل الخيارات مرة واحدة
+        const allEmpOptions = [];
+        empFilter.querySelectorAll('option').forEach(opt => {
+            allEmpOptions.push({
+                value: opt.value,
+                text: opt.textContent,
+                dept: opt.getAttribute('data-dept') || '',
+                selected: opt.selected
+            });
+        });
+
+        function filterEmployeesByDept() {
+            const deptId = deptFilter.value;
+            const currentVal = empFilter.value;
+
+            // مسح كل الخيارات
+            empFilter.innerHTML = '<option value="" data-dept="">كل الموظفين</option>';
+
+            // بناء optgroups
+            const activeGroup = document.createElement('optgroup');
+            activeGroup.label = 'نشط';
+            const inactiveGroup = document.createElement('optgroup');
+            inactiveGroup.label = 'غير نشط';
+
+            allEmpOptions.forEach(opt => {
+                if (opt.value === '') return; // تخطي خيار "كل الموظفين"
+                // إذا تم اختيار قسم، أظهر فقط موظفي هذا القسم
+                if (deptId && opt.dept !== deptId) return;
+
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                option.setAttribute('data-dept', opt.dept);
+                if (opt.value == currentVal) option.selected = true;
+
+                // تحديد المجموعة (نشط/غير نشط) بناءً على النص
+                if (opt.text.includes('(غير نشط)')) {
+                    inactiveGroup.appendChild(option);
+                } else {
+                    activeGroup.appendChild(option);
+                }
+            });
+
+            if (activeGroup.children.length > 0) empFilter.appendChild(activeGroup);
+            if (inactiveGroup.children.length > 0) empFilter.appendChild(inactiveGroup);
+        }
+
+        deptFilter.addEventListener('change', filterEmployeesByDept);
+
+        // تشغيل الفلتر عند التحميل
+        document.addEventListener('DOMContentLoaded', filterEmployeesByDept);
+    </script>
+{% endblock %}

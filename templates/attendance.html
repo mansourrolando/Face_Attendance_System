@@ -1,0 +1,758 @@
+{% extends "base.html" %}
+
+{% block title %}تسجيل الحضور{% endblock %}
+
+{% block styles %}
+    <style>
+        .attendance-layout {
+            display: flex; gap: 20px;
+        }
+
+        /* قسم الكاميرا */
+        .camera-section { flex: 2; }
+        .camera-box {
+            background: white; padding: 20px; border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); text-align: center;
+        }
+        h1 { color: #333; margin-bottom: 20px; text-align: center; }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+        }
+        #video { width: 100%; display: block; border-radius: 10px; }
+        #canvas { display: none; }
+
+        /* === تأثير Face ID - غشاء داكن خارج الدائرة === */
+        .face-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .face-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.45);
+            -webkit-mask: radial-gradient(
+                ellipse 25% 32% at 50% 50%,
+                transparent 90%,
+                black 100%
+            );
+            mask: radial-gradient(
+                ellipse 25% 32% at 50% 50%,
+                transparent 90%,
+                black 100%
+            );
+        }
+
+        /* دائرة توجيه الوجه - نسخة محسنة */
+        .face-guide {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50%;
+            height: 65%;
+            border: 2.5px solid rgba(52, 152, 219, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 3;
+            animation: face-guide-glow 2.5s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.15), inset 0 0 20px rgba(52, 152, 219, 0.05);
+        }
+        @keyframes face-guide-glow {
+            0%, 100% {
+                border-color: rgba(52, 152, 219, 0.5);
+                box-shadow: 0 0 15px rgba(52, 152, 219, 0.15);
+            }
+            50% {
+                border-color: rgba(52, 152, 219, 0.9);
+                box-shadow: 0 0 30px rgba(52, 152, 219, 0.35);
+            }
+        }
+
+        /* خط المسح المتحرك داخل الدائرة */
+        .face-guide::after {
+            content: '';
+            position: absolute;
+            top: 10%; left: 10%; right: 10%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.7), transparent);
+            animation: scan-line 3s ease-in-out infinite;
+            border-radius: 1px;
+        }
+        @keyframes scan-line {
+            0%, 100% { top: 10%; opacity: 0; }
+            10% { opacity: 1; }
+            50% { top: 85%; opacity: 1; }
+            90% { opacity: 0; }
+        }
+
+        .camera-status-badge {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            padding: 4px 14px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+
+        .status-box {
+            margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;
+            border-left: 5px solid #3498db;
+        }
+        .status-box h3 { margin-bottom: 10px; color: #2c3e50; }
+        .status-box p { font-size: 14px; color: #555; }
+
+        .success-msg { color: #27ae60; font-weight: bold; font-size: 18px; margin-top: 10px; }
+        .error-msg { color: #e74c3c; font-weight: bold; font-size: 16px; margin-top: 10px; }
+        .info-msg { color: #3498db; font-weight: bold; font-size: 14px; margin-top: 10px; }
+
+        /* أزرار التحكم */
+        .btn-attendance {
+            display: inline-block;
+            padding: 12px 35px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        .btn-attendance:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-capture {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        .btn-capture:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+        }
+        .btn-auto {
+            background: linear-gradient(135deg, #27ae60, #219a52);
+            color: white;
+        }
+        .btn-auto:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+        }
+        .btn-stop {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+        .btn-stop:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* قسم السجلات الجانبي */
+        .logs-section { flex: 1; }
+        .logs-box {
+            background: white; padding: 20px; border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .logs-box h3 { margin-bottom: 15px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .log-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px; border-bottom: 1px solid #f1f1f1;
+        }
+        .log-item:last-child { border-bottom: none; }
+        .log-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .log-info { flex: 1; }
+        .log-name { font-weight: bold; font-size: 13px; color: #333; }
+        .log-time { font-size: 11px; color: #7f8c8d; }
+        .badge-log { padding: 2px 6px; border-radius: 4px; font-size: 10px; color: white; }
+        .bg-green { background: #27ae60; }
+        .bg-orange { background: #e67e22; }
+        .bg-blue { background: #3498db; }
+        .bg-teal { background: #009688; }
+
+        /* Loading overlay */
+        .processing-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            border-radius: 10px;
+        }
+        .processing-overlay.active { display: flex; }
+        .processing-spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* اختيار الكاميرا */
+        .camera-select-row {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 15px;
+        }
+        .camera-select-row label {
+            font-size: 14px; color: #555; font-weight: bold; white-space: nowrap;
+        }
+        .camera-select-row select {
+            flex: 1; padding: 8px 12px; border: 1px solid #ddd;
+            border-radius: 8px; font-size: 13px; font-family: 'Tajawal', Tahoma, sans-serif;
+            cursor: pointer; outline: none; background: white;
+            max-width: 350px;
+        }
+        .camera-select-row select:focus { border-color: #3498db; }
+        .camera-select-row select option {
+            background: white; color: #333;
+        }
+
+        /* خطأ الكاميرا */
+        .camera-error-box {
+            display: none;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .camera-error-box i { font-size: 3rem; color: #e74c3c; margin-bottom: 10px; }
+        .camera-error-box h4 { color: #e74c3c; margin-bottom: 8px; }
+        .camera-error-box p { color: #666; font-size: 14px; }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="attendance-layout">
+        <!-- قسم الكاميرا -->
+        <div class="camera-section">
+            <div class="camera-box">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h1 style="margin:0;">نظام تسجيل الحضور الذكي</h1>
+                    <a href="{{ url_for('attendance_manage.attendance_add') }}" style="background:#8e44ad; color:white; padding:8px 18px; border-radius:5px; text-decoration:none; font-size:13px; font-weight:bold;">+ إضافة حضور يدوي</a>
+                </div>
+
+                <!-- اختيار الكاميرا -->
+                <div class="camera-select-row" id="cameraSelectRow" style="display:none;">
+                    <label>📷 الكاميرا:</label>
+                    <select id="cameraSelect" onchange="switchCamera()"></select>
+                </div>
+
+                <!-- خطأ الكاميرا -->
+                <div class="camera-error-box" id="cameraError">
+                    <h4>لا يمكن الوصول إلى الكاميرا</h4>
+                    <p id="cameraErrorMsg">تأكد من إعطاء الإذن للكاميرا وأن المتصفح يدعم ذلك</p>
+                    <button class="btn-attendance btn-capture" onclick="startCamera()">حاول مرة أخرى</button>
+                </div>
+
+                <!-- الكاميرا -->
+                <div class="video-container" id="videoContainer" style="display:none;">
+                    <video id="video" autoplay playsinline muted></video>
+                    <div class="face-overlay"></div>
+                    <div class="face-guide"></div>
+                    <div class="camera-status-badge" id="cameraBadge">
+                        جاري تشغيل الكاميرا...
+                    </div>
+                    <div class="processing-overlay" id="processingOverlay">
+                        <div class="processing-spinner"></div>
+                        <span>جاري التحقق من الوجه...</span>
+                    </div>
+                </div>
+
+                <canvas id="canvas"></canvas>
+
+                <!-- أزرار التحكم -->
+                <div class="controls-row" id="controlsRow" style="display:none;">
+                    <button class="btn-attendance btn-capture" id="captureBtn" onclick="captureOnce()">
+                        التقط صورة
+                    </button>
+                    <button class="btn-attendance btn-auto" id="autoBtn" onclick="toggleAutoMode()">
+                        الوضع التلقائي
+                    </button>
+                    <button class="btn-attendance" id="leaveOutBtn" onclick="captureLeaveOut()"
+                        style="background: linear-gradient(135deg, #e67e22, #f39c12); color: white;">
+                        🚪 خروج إجازة
+                    </button>
+                    <button class="btn-attendance" id="leaveInBtn" onclick="captureLeaveIn()"
+                        style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white;">
+                        🔄 رجوع إجازة
+                    </button>
+                </div>
+
+                <div class="status-box">
+                    <h3>الحالة:</h3>
+                    <p id="statusText">في انتظار تشغيل الكاميرا...</p>
+                    <div id="resultDiv"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- قسم السجلات الجانبي -->
+        <div class="logs-section">
+            <!-- بطاقة الغائبين -->
+            <div class="logs-box" style="margin-bottom: 15px; border-right: 4px solid #3498db;">
+                <div>
+                    <h3 style="margin: 0; color: #3498db; font-size: 14px;">موظفون لم يسجّلوا حضور اليوم</h3>
+                    <p style="font-size: 24px; font-weight: bold; color: #3498db; margin: 5px 0;" id="absentCount">{{ absent_count }}</p>
+                    <small style="color: #999;">الانصراف التلقائي والغياب يُسجّلان تلقائياً بعد وقت الانصراف المحدد في الإعدادات</small>
+                </div>
+            </div>
+
+            <div class="logs-box">
+                <h3>آخر التسجيلات اليوم</h3>
+                {% if recent_logs %}
+                    {% for log in recent_logs %}
+                    <div class="log-item">
+                        {% if log.employee and log.employee.face_image_path %}
+                        <img src="{{ url_for('static', filename=log.employee.face_image_path) }}" class="log-img">
+                        {% else %}
+                        <img src="{{ url_for('static', filename='img/no_photo_small.svg') }}" class="log-img">
+                        {% endif %}
+
+                        <div class="log-info">
+                            <div class="log-name">{{ log.employee.name if log.employee else '-' }}</div>
+                            <div class="log-time">
+                                {{ log.time_in.strftime('%H:%M') if log.time_in else '-' }}
+                                {% if log.status == 'present' %} <span class="badge-log bg-green">حاضر</span> {% endif %}
+                                {% if log.status == 'late' %} <span class="badge-log bg-orange">متأخر</span> {% endif %}
+                                {% if log.checkout_auto %} <span class="badge-log" style="background:#8e44ad;">انصراف تلقائي</span> {% endif %}
+                                {% if log.status == 'leave' %} <span class="badge-log bg-blue">إجازة</span> {% endif %}
+                                {% if log.status == 'absent' and log.absence_type == 'justified' %} <span class="badge-log bg-orange">غياب مبرر</span> {% endif %}
+                                {% if log.status == 'absent' and log.absence_type != 'justified' %} <span class="badge-log" style="background:#c0392b;">غياب غير مبرر</span> {% endif %}
+                                {% if log.early_checkout %} <span class="badge-log" style="background:#c0392b;">انصراف مبكر</span> {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="text-align:center; color:#999; font-size:12px;">لا توجد تسجيلات بعد اليوم</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/camera-utils.js') }}"></script>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const statusText = document.getElementById('statusText');
+        const resultDiv = document.getElementById('resultDiv');
+        const cameraError = document.getElementById('cameraError');
+        const videoContainer = document.getElementById('videoContainer');
+        const controlsRow = document.getElementById('controlsRow');
+        const cameraBadge = document.getElementById('cameraBadge');
+        const processingOverlay = document.getElementById('processingOverlay');
+        const captureBtn = document.getElementById('captureBtn');
+        const autoBtn = document.getElementById('autoBtn');
+
+        let cameraReady = false;
+        let isProcessing = false;
+        let autoMode = false;
+        let autoTimer = null;
+        const AUTO_INTERVAL = 4000; // 4 ثواني بين كل محاولة تلقائية
+
+        // ==========================================
+        // 1. تشغيل الكاميرا
+        // ==========================================
+        async function startCamera() {
+            cameraError.style.display = 'none';
+            videoContainer.style.display = 'none';
+            controlsRow.style.display = 'none';
+            cameraReady = false;
+
+            try {
+                const savedId = getSavedCameraId();
+                const constraints = {
+                    video: { width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false
+                };
+
+                if (savedId) {
+                    constraints.video.deviceId = { exact: savedId };
+                } else {
+                    constraints.video.facingMode = 'user';
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+                video.srcObject = stream;
+                await video.play();
+
+                cameraReady = true;
+                videoContainer.style.display = 'block';
+                controlsRow.style.display = 'flex';
+                cameraBadge.innerHTML = 'الكاميرا جاهزة';
+                statusText.innerHTML = '<span class="info-msg">الكاميرا جاهزة - اضغط "التقط صورة" لتسجيل الحضور</span>';
+
+                // تحميل قائمة الكاميرات
+                const cameras = await populateCameraSelect(document.getElementById('cameraSelect'));
+                if (cameras.length > 1) {
+                    document.getElementById('cameraSelectRow').style.display = 'flex';
+                }
+
+            } catch (err) {
+                console.error('Camera error:', err);
+
+                // fallback إذا الكاميرا المحفوظة ما اشتغلت
+                if (err.name === 'OverconstrainedError' || err.name === 'NotFoundError') {
+                    try {
+                        saveSelectedCamera('');
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+                            audio: false
+                        });
+                        video.srcObject = stream;
+                        await video.play();
+                        cameraReady = true;
+                        videoContainer.style.display = 'block';
+                        controlsRow.style.display = 'flex';
+                        cameraBadge.innerHTML = 'الكاميرا جاهزة';
+                        statusText.innerHTML = '<span class="info-msg">الكاميرا جاهزة - اضغط "التقط صورة" لتسجيل الحضور</span>';
+
+                        const cameras = await populateCameraSelect(document.getElementById('cameraSelect'));
+                        if (cameras.length > 1) {
+                            document.getElementById('cameraSelectRow').style.display = 'flex';
+                        }
+
+                        return;
+                    } catch (e2) { err = e2; }
+                }
+
+                cameraError.style.display = 'block';
+                videoContainer.style.display = 'none';
+                controlsRow.style.display = 'none';
+
+                let msg = getCameraErrorMessage(err.name);
+                document.getElementById('cameraErrorMsg').textContent = msg;
+                statusText.innerHTML = '<span class="error-msg">' + msg + '</span>';
+            }
+        }
+
+        // ==========================================
+        // 1b. تبديل الكاميرا
+        // ==========================================
+        async function switchCamera() {
+            const select = document.getElementById('cameraSelect');
+            const deviceId = select.value;
+            if (!deviceId) return;
+
+            saveSelectedCamera(deviceId);
+
+            // إيقاف الكاميرا الحالية
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            cameraReady = false;
+
+            // إيقاف الوضع التلقائي مؤقتاً
+            const wasAutoMode = autoMode;
+            if (autoMode) {
+                autoMode = false;
+                if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, deviceId: { exact: deviceId } },
+                    audio: false
+                });
+                video.srcObject = stream;
+                await video.play();
+                cameraReady = true;
+                cameraBadge.innerHTML = 'الكاميرا جاهزة';
+                statusText.innerHTML = '<span class="info-msg">تم تبديل الكاميرا بنجاح</span>';
+
+                // إعادة تشغيل الوضع التلقائي إذا كان شغالاً
+                if (wasAutoMode) {
+                    setTimeout(() => {
+                        if (cameraReady && !autoMode) toggleAutoMode();
+                    }, 1000);
+                }
+
+            } catch (err) {
+                console.error('Camera switch error:', err);
+                statusText.innerHTML = '<span class="error-msg">خطأ في تشغيل الكاميرا المحددة - جاري إعادة المحاولة...</span>';
+                // إعادة المحاولة بالكاميرا الافتراضية
+                saveSelectedCamera('');
+                startCamera();
+            }
+        }
+
+        // ==========================================
+        // 2. التقاط صورة واحدة والتحقق
+        // ==========================================
+        function captureOnce() {
+            if (!cameraReady || isProcessing) return;
+            captureAndCheck('auto');
+        }
+
+        // ==========================================
+        // 2b. خروج إجازة ساعية
+        // ==========================================
+        function captureLeaveOut() {
+            if (!cameraReady || isProcessing) return;
+            captureAndCheck('leave_out');
+        }
+
+        // ==========================================
+        // 2c. رجوع من إجازة ساعية
+        // ==========================================
+        function captureLeaveIn() {
+            if (!cameraReady || isProcessing) return;
+            captureAndCheck('leave_in');
+        }
+
+        // ==========================================
+        // 3. الوضع التلقائي
+        // ==========================================
+        function toggleAutoMode() {
+            if (autoMode) {
+                autoMode = false;
+                if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+                autoBtn.textContent = 'الوضع التلقائي';
+                autoBtn.className = 'btn-attendance btn-auto';
+                cameraBadge.innerHTML = 'الكاميرا جاهزة';
+                statusText.innerHTML = '<span class="info-msg">تم إيقاف الوضع التلقائي</span>';
+            } else {
+                autoMode = true;
+                autoBtn.textContent = 'إيقاف التلقائي';
+                autoBtn.className = 'btn-attendance btn-stop';
+                cameraBadge.innerHTML = 'وضع تلقائي...';
+                statusText.innerHTML = '<span class="info-msg">الوضع التلقائي يعمل - سيتم البحث عن وجه كل 4 ثواني</span>';
+                autoCapture();
+            }
+        }
+
+        function autoCapture() {
+            if (!autoMode || !cameraReady) return;
+            if (isProcessing) {
+                autoTimer = setTimeout(autoCapture, 1000);
+                return;
+            }
+            captureAndCheck();
+        }
+
+        // ==========================================
+        // 4. التقاط الصورة والتحقق من الوجه
+        // ==========================================
+        function captureAndCheck(actionType) {
+            if (isProcessing || !cameraReady) return;
+            isProcessing = true;
+
+            processingOverlay.classList.add('active');
+            captureBtn.disabled = true;
+            cameraBadge.innerHTML = 'جاري التحقق...';
+
+            // قص الصورة لمنطقة الدائرة فقط (دالة مشتركة من camera-utils.js)
+            let imageData = cropToGuideRegion(video);
+
+            // تحديد الراوت حسب نوع الإجراء
+            let url = '{{ url_for("attendance.verify_face") }}';
+            if (actionType === 'leave_out') url = '{{ url_for("attendance.leave_out") }}';
+            else if (actionType === 'leave_in') url = '{{ url_for("attendance.leave_in") }}';
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('خطأ في الخادم: ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                processingOverlay.classList.remove('active');
+                captureBtn.disabled = false;
+                isProcessing = false;
+
+                if (data.success) {
+                    let actionText = "";
+                    let actionIcon = "";
+                    if (data.action === 'checkin') {
+                        actionText = "تسجيل حضور";
+                        actionIcon = "✅";
+                    } else if (data.action === 'late') {
+                        actionText = "حضور متأخر";
+                        actionIcon = "⚠️";
+                    } else if (data.action === 'checkout') {
+                        actionText = "تسجيل انصراف";
+                        actionIcon = "👋";
+                    } else if (data.action === 'done') {
+                        actionText = "الدوام مكتمل";
+                        actionIcon = "✔️";
+                    } else if (data.action === 'leave_out') {
+                        actionText = "خروج إجازة ساعية";
+                        actionIcon = "🚪";
+                    } else if (data.action === 'leave_in') {
+                        actionText = "رجوع من الإجازة";
+                        actionIcon = "🔄";
+                    } else if (data.action === 'leave_in_late') {
+                        actionText = "رجوع متأخر من الإجازة";
+                        actionIcon = "⚠️";
+                    } else {
+                        actionText = "تسجيل";
+                        actionIcon = "📌";
+                    }
+
+                    statusText.innerHTML = '<span class="success-msg">' + actionIcon + ' ' + actionText + ': ' + data.name + ' - ' + (data.time || '') + '</span>';
+
+                    // تفاصيل إضافية حسب نوع الإجراء
+                    if (data.action === 'late' && data.late_minutes) {
+                        statusText.innerHTML += '<br><small style="color:#e67e22;">تأخير: ' + data.late_minutes + ' دقيقة</small>';
+                    }
+                    if (data.action === 'checkout') {
+                        if (data.work_hours) {
+                            statusText.innerHTML += '<br><small style="color:#3498db;">ساعات العمل: ' + data.work_hours + '</small>';
+                        }
+                        if (data.early_checkout && data.early_checkout_minutes) {
+                            statusText.innerHTML += '<br><small style="color:#e74c3c;">خروج مبكر: ' + data.early_checkout_minutes + ' دقيقة</small>';
+                        }
+                    }
+
+                    if (data.confidence) {
+                        statusText.innerHTML += '<br><small style="color:#7f8c8d;">نسبة الثقة: ' + data.confidence + '</small>';
+                    }
+
+                    cameraBadge.innerHTML = 'تم التعرف بنجاح';
+                    addToLogs(data.name, data.time, data.action);
+
+                    if (autoMode) {
+                        if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+                        autoTimer = setTimeout(autoCapture, 5000);
+                    }
+
+                } else {
+                    statusText.innerHTML = '<span class="error-msg">❌ ' + data.message + '</span>';
+                    cameraBadge.innerHTML = 'لم يتم التعرف';
+
+                    if (autoMode) {
+                        autoTimer = setTimeout(autoCapture, AUTO_INTERVAL);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Verification error:', err);
+                processingOverlay.classList.remove('active');
+                captureBtn.disabled = false;
+                isProcessing = false;
+
+                statusText.innerHTML = '<span class="error-msg">❌ خطأ في الاتصال: ' + err.message + '</span>';
+                cameraBadge.innerHTML = 'خطأ في الاتصال';
+
+                if (autoMode) {
+                    autoTimer = setTimeout(autoCapture, AUTO_INTERVAL);
+                }
+            });
+        }
+
+        // ==========================================
+        // 5. إضافة سجل للقائمة الجانبية ديناميكياً
+        // ==========================================
+        function addToLogs(name, time, action) {
+            // نحدد صندوق السجلات الصحيح (الثاني - اللي فيه آخر التسجيلات)
+            const allBoxes = document.querySelectorAll('.logs-box');
+            const logsBox = allBoxes.length > 1 ? allBoxes[1] : allBoxes[0];
+
+            // إزالة رسالة "لا توجد تسجيلات" لو موجودة
+            const noRecords = logsBox.querySelector('p[style*="text-align:center"]');
+            if (noRecords) noRecords.remove();
+
+            let badgeClass = 'bg-green';
+            let badgeText = 'حضر';
+            if (action === 'checkout') {
+                badgeClass = 'bg-blue';
+                badgeText = 'انصراف';
+            } else if (action === 'late') {
+                badgeClass = 'bg-orange';
+                badgeText = 'تأخر';
+            } else if (action === 'done') {
+                badgeClass = 'bg-blue';
+                badgeText = 'مكتمل';
+            } else if (action === 'leave_out') {
+                badgeClass = 'bg-orange';
+                badgeText = 'خروج إجازة';
+            } else if (action === 'leave_in') {
+                badgeClass = 'bg-green';
+                badgeText = 'رجوع إجازة';
+            } else if (action === 'leave_in_late') {
+                badgeClass = 'bg-orange';
+                badgeText = 'رجوع متأخر';
+            }
+
+            let timeStr = time || '';
+            if (timeStr && timeStr.length > 5) {
+                timeStr = timeStr.substring(0, 5);
+            }
+
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+            logItem.style.animation = 'fadeIn 0.5s ease';
+            logItem.innerHTML =
+                '<img src="/static/img/no_photo_small.svg" class="log-img">' +
+                '<div class="log-info">' +
+                    '<div class="log-name">' + name + '</div>' +
+                    '<div class="log-time">' +
+                        timeStr +
+                        ' <span class="badge-log ' + badgeClass + '">' + badgeText + '</span>' +
+                    '</div>' +
+                '</div>';
+
+            // إضافة في بداية السجلات (بعد h3 مباشرة)
+            const h3 = logsBox.querySelector('h3');
+            if (h3 && h3.nextSibling) {
+                // إدراج بعد h3 باستخدام insertAdjacentElement
+                h3.insertAdjacentElement('afterend', logItem);
+            } else if (h3) {
+                h3.insertAdjacentElement('afterend', logItem);
+            } else {
+                logsBox.prepend(logItem);
+            }
+        }
+
+        // ==========================================
+        // 6. تشغيل الكاميرا عند تحميل الصفحة
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            startCamera();
+        });
+
+        // ==========================================
+        // 7. تنظيف عند مغادرة الصفحة
+        // ==========================================
+        window.addEventListener('beforeunload', function() {
+            autoMode = false;
+            if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+            stopStream(video);
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}ملف الموظف{% endblock %}
+
+{% block styles %}
+    <style>
+        .profile-card {
+            background: white; border-radius: 10px; padding: 30px;
+            display: flex; gap: 30px; margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .profile-image {
+            width: 150px; height: 150px; border-radius: 50%;
+            border: 4px solid #3498db; object-fit: cover; background: #eee;
+        }
+        .profile-image.inactive-img {
+            border-color: #e74c3c;
+            opacity: 0.6;
+            filter: grayscale(50%);
+        }
+        .profile-info h1 { color: #2c3e50; margin-bottom: 10px; }
+        .profile-info p { color: #666; margin-bottom: 5px; font-size: 14px; }
+        .badge-status {
+            display: inline-block; padding: 5px 15px; border-radius: 20px;
+            font-size: 12px; margin-top: 10px;
+        }
+        .badge-active { background: #e8f5e9; color: #2e7d32; }
+        .badge-inactive { background: #ffebee; color: #c62828; }
+        .stats-grid { display: flex; gap: 15px; margin-bottom: 30px; }
+        .stat-box {
+            background: white; padding: 20px; border-radius: 8px;
+            flex: 1; text-align: center; border-top: 3px solid #3498db;
+        }
+        .stat-box h2 { color: #333; font-size: 24px; }
+        .stat-box p { color: #777; font-size: 13px; margin-top: 5px; }
+        .status-present { color: #27ae60; }
+        .status-late { color: #e67e22; }
+        .status-leave { color: #3498db; }
+        .status-absent { color: #e74c3c; }
+        .status-absent-justified { color: #e67e22; }
+        .status-absent-unjustified { color: #c0392b; }
+        .btn-edit {
+            background: #3498db; color: white; padding: 8px 15px;
+            border-radius: 5px; text-decoration: none; font-size: 13px;
+        }
+        .btn-register-face {
+            background: #9b59b6; color: white; padding: 8px 15px;
+            border-radius: 5px; text-decoration: none; font-size: 13px;
+            margin-right: 10px;
+        }
+        .btn-return {
+            background: #95a5a6; color: white; padding: 8px 15px;
+            border-radius: 5px; font-size: 13px; text-decoration: none;
+        }
+
+        /* تنبيه الموظف غير النشط */
+        .inactive-alert {
+            background: linear-gradient(135deg, #fff5f5, #ffebee);
+            border: 2px solid #e74c3c;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .inactive-alert-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+        .inactive-alert-text h3 {
+            color: #c62828;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        .inactive-alert-text p {
+            color: #b71c1c;
+            font-size: 13px;
+            margin: 0;
+        }
+        .inactive-alert-text p:last-child {
+            margin-top: 4px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        /* تنبيه بصمة الوجه معطلة */
+        .face-disabled-alert {
+            background: linear-gradient(135deg, #fff8e1, #fff3cd);
+            border: 2px solid #f39c12;
+            border-radius: 10px;
+            padding: 12px 18px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .face-disabled-alert span {
+            color: #856404;
+            font-size: 13px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    {% if employee.status != 'active' %}
+    <!-- تنبيه الموظف غير النشط -->
+    <div class="inactive-alert">
+        <div class="inactive-alert-icon">🚫</div>
+        <div class="inactive-alert-text">
+            <h3>هذا الموظف غير نشط</h3>
+            <p>لن يتمكن الموظف من تسجيل الحضور أو الانصراف عبر التعرف على الوجه.</p>
+            {% if employee.deactivation_reason %}
+            <p>سبب التعطيل: <strong>{{ employee.deactivation_reason }}</strong>{% if employee.deactivation_date %} - منذ {{ employee.deactivation_date.strftime('%Y-%m-%d') }}{% endif %}</p>
+            {% endif %}
+            {% if employee.face_encoding %}
+            <p>يوجد بصمة وجه مسجلة لكنها معطلة تلقائياً بسبب حالة الموظف.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="profile-card">
+        <div class="image-container">
+            {% if employee.face_image_path %}
+                <img src="{{ url_for('static', filename=employee.face_image_path) }}" class="profile-image {% if employee.status != 'active' %}inactive-img{% endif %}">
+            {% else %}
+                <img src="{{ url_for('static', filename='img/no_photo.svg') }}" class="profile-image {% if employee.status != 'active' %}inactive-img{% endif %}">
+            {% endif %}
+        </div>
+        <div class="profile-info">
+            <h1>{{ employee.name }}</h1>
+            <p><strong>الرقم الوظيفي:</strong> {{ employee.employee_id }}</p>
+            <p><strong>القسم:</strong> {{ employee.department.name if employee.department else 'غير محدد' }}</p>
+            <p><strong>الوظيفة:</strong> {{ employee.position or 'غير محدد' }}</p>
+            <p><strong>البريد:</strong> {{ employee.email or 'غير محدد' }}</p>
+            <p><strong>الهاتف:</strong> {{ employee.phone or 'غير محدد' }}</p>
+            <p><strong>تاريخ التوظيف:</strong> {% if employee.hire_date %}{{ employee.hire_date.strftime('%Y-%m-%d') }}{% else %}غير محدد{% endif %}
+                {% if employee.hire_date %}
+                    {% set tenure_days = (today - employee.hire_date).days %}
+                    {% set tenure_years = (tenure_days / 365.25)|int %}
+                    {% set tenure_months = ((tenure_days % 365.25) / 30.44)|int %}
+                    <small style="color:#3498db; margin-right: 8px;">({% if tenure_years > 0 %}{{ tenure_years }} سنة {% endif %}{{ tenure_months }} شهر)</small>
+                {% endif %}
+            </p>
+            <p><strong>بصمة الوجه:</strong>
+                {% if employee.face_encoding %}
+                    {% if employee.status == 'active' %}
+                        <span style="color:#27ae60;">مسجلة ونشطة</span>
+                    {% else %}
+                        <span style="color:#e74c3c;">مسجلة لكن معطلة (الموظف غير نشط)</span>
+                    {% endif %}
+                {% else %}
+                    <span style="color:#e74c3c;">غير مسجلة</span>
+                {% endif %}
+            </p>
+            {% if employee.status == 'active' %}
+                <span class="badge-status badge-active">نشط</span>
+            {% else %}
+                <span class="badge-status badge-inactive">غير نشط</span>
+                {% if employee.deactivation_reason %}
+                <small style="display:block; margin-top:5px; color:#c62828; font-size:12px;">
+                    السبب: {{ employee.deactivation_reason }}
+                    {% if employee.deactivation_date %} | تاريخ التعطيل: {{ employee.deactivation_date.strftime('%Y-%m-%d') }}{% endif %}
+                </small>
+                {% endif %}
+            {% endif %}
+
+            {% if employee.status != 'active' and employee.face_encoding %}
+            <div class="face-disabled-alert">
+                <span>⚠️</span>
+                <span>بصمة الوجه مسجلة لكنها معطلة - الموظف لن يتم التعرف عليه عند الكشك أو صفحة الحضور حتى يتم تفعيل حسابه.</span>
+            </div>
+            {% endif %}
+
+            <div style="margin-top: 15px;">
+                <a href="{{ url_for('employees.employee_edit', id=employee.id) }}" class="btn-edit">تعديل البيانات</a>
+                {% if not employee.face_encoding %}
+                    <a href="{{ url_for('face.register_face_page', id=employee.id) }}" class="btn-register-face">تسجيل بصمة الوجه</a>
+                {% else %}
+                    <a href="{{ url_for('face.register_face_page', id=employee.id) }}" class="btn-register-face" style="background:#f39c12;">إعادة تسجيل البصمة</a>
+                {% endif %}
+                <a href="{{ url_for('employees.employees') }}" class="btn-return">رجوع</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-box">
+            <h2>{{ monthly_attendance }}</h2>
+            <p>أيام الحضور (هذا الشهر)</p>
+        </div>
+        <div class="stat-box">
+            <h2>{{ leave_days }}</h2>
+            <p>أيام الإجازة (هذا الشهر)</p>
+        </div>
+    </div>
+
+    <div class="table-box">
+        <h3 style="margin-bottom:15px; color:#333;">آخر سجلات الحضور</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>الحضور</th>
+                    <th>الانصراف</th>
+                    <th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                <tr>
+                    <td>{{ record.date }}</td>
+                    <td>{{ record.time_in.strftime('%H:%M') if record.time_in else '-' }}</td>
+                    <td>{{ record.time_out.strftime('%H:%M') if record.time_out else '-' }}</td>
+                    <td class="{% if record.status == 'present' %}status-present{% elif record.status == 'late' %}status-late{% elif record.status == 'leave' %}status-leave{% elif record.absence_type == 'justified' %}status-absent-justified{% else %}status-absent-unjustified{% endif %}">
+                        {% if record.status == 'present' %}حاضر
+                        {% elif record.status == 'late' %}متأخر
+                        {% elif record.status == 'leave' %}إجازة
+                        {% elif record.absence_type == 'justified' %}غياب مبرر
+                        {% else %}غياب غير مبرر{% endif %}
+                        {% if record.checkout_auto %} <small style="color:#8e44ad;">(انصراف تلقائي)</small>{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align:center; color:#999; padding:20px;">لا توجد سجلات حضور</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}الأقسام{% endblock %}
+
+{% block styles %}
+    <style>
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .btn-add {
+            background: #27ae60; color: white; padding: 10px 20px;
+            text-decoration: none; border-radius: 5px; font-size: 14px;
+        }
+        .btn-add:hover { background: #219a52; }
+        .btn-employees {
+            background: #27ae60; color: white; padding: 5px 12px;
+            border-radius: 4px; text-decoration: none; font-size: 12px;
+        }
+        .btn-employees:hover { background: #219a52; }
+        .btn-edit {
+            background: #3498db; color: white; padding: 5px 12px;
+            border-radius: 4px; text-decoration: none; font-size: 12px;
+        }
+        .btn-delete {
+            background: #e74c3c; color: white; padding: 5px 12px;
+            border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
+        }
+        .dept-actions {
+            display: flex; gap: 6px; align-items: center;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>الأقسام</h1>
+        <a href="{{ url_for('departments.department_add') }}" class="btn-add">إضافة قسم</a>
+    </div>
+
+    <div class="table-box">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>اسم القسم</th>
+                    <th>الوصف</th>
+                    <th>عدد الموظفين</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dept in departments %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ dept.name }}</td>
+                    <td>{{ dept.description or '-' }}</td>
+                    <td>
+                        {% set stats = dept_stats.get(dept.id, {'active': 0, 'inactive': 0}) %}
+                        <span style="font-weight:bold;">{{ stats.active }}</span> <small style="color:#27ae60;">نشط</small>
+                        {% if stats.inactive > 0 %}
+                            + <span style="color:#e74c3c;">{{ stats.inactive }}</span> <small style="color:#e74c3c;">غير نشط</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="dept-actions">
+                            <a href="{{ url_for('departments.department_employees', id=dept.id) }}" class="btn-employees">الموظفين</a>
+                            <a href="{{ url_for('departments.department_edit', id=dept.id) }}" class="btn-edit">تعديل</a>
+                            <form action="{{ url_for('departments.department_delete', id=dept.id) }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn-delete" onclick="return confirm('هل أنت متأكد من حذف هذا القسم؟')">حذف</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align:center; color:#999; padding:30px;">لا توجد أقسام بعد</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

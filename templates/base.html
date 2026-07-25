@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}نظام الحضور الذكي{% endblock %}</title>
+    <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body { font-family: Tahoma, sans-serif; background: #f5f5f5; display: flex; }
+
+        /* === الشريط الجانبي === */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            height: 100vh;
+            background: #2c3e50;
+            padding: 20px 15px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+        }
+        .sidebar h2 {
+            color: white; font-size: 16px;
+            margin-bottom: 20px; padding-bottom: 12px;
+            border-bottom: 1px solid #3d5166;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sidebar a {
+            display: block; color: #b8c7d2;
+            text-decoration: none; padding: 10px 12px;
+            margin: 3px 0; border-radius: 5px;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: #3498db; color: white;
+        }
+        /* عنصر فرعي في الشريط الجانبي */
+        .sidebar a.sidebar-sub {
+            padding: 7px 12px 7px 12px;
+            margin: 1px 0 1px 0;
+            font-size: 13px;
+            color: #8e9eab;
+            padding-right: 28px;
+            border-right: 3px solid #3d5166;
+        }
+        .sidebar a.sidebar-sub:hover {
+            background: rgba(52,152,219,0.15);
+            color: #3498db;
+            border-right-color: #3498db;
+        }
+
+        /* === المحتوى الرئيسي === */
+        .main {
+            flex: 1;
+            padding: 30px;
+            min-height: 100vh;
+            overflow-x: auto;
+        }
+
+        /* === رسائل Flash === */
+        .flash-container {
+            position: fixed; top: 20px; left: 50%;
+            transform: translateX(-50%); z-index: 9999;
+            min-width: 300px; max-width: 500px;
+        }
+        .flash-msg {
+            padding: 12px 20px; border-radius: 8px;
+            margin-bottom: 10px; color: white;
+            font-size: 14px; text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            animation: slideDown 0.3s ease;
+        }
+        .flash-success { background: #27ae60; }
+        .flash-danger { background: #e74c3c; }
+        .flash-warning { background: #f39c12; }
+        .flash-info { background: #3498db; }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* === الأنماط المشتركة === */
+        h1 { color: #333; margin-bottom: 20px; }
+        .table-box {
+            background: white; border-radius: 8px;
+            padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: right; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #555; font-weight: bold; }
+        tr:hover { background: #f1f1f1; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; color: white; }
+    </style>
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <!-- رسائل Flash -->
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-msg flash-{{ category }}" id="flash-{{ loop.index }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- الشريط الجانبي -->
+    {% include 'sidebar.html' %}
+
+    <!-- المحتوى الرئيسي -->
+    <div class="main">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- إخفاء رسائل Flash تلقائياً -->
+    <script>
+        $(document).ready(function() {
+            setTimeout(function() {
+                $('.flash-msg').fadeOut(500, function() { $(this).remove(); });
+            }, 4000);
+        });
+
+        // ==========================================
+        // الوضع الليلي - Dark Mode
+        // ==========================================
+        (function() {
+            // تحميل التفضيل المحفوظ أو تفضيل النظام
+            var saved = localStorage.getItem('theme');
+            if (saved === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else if (saved === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+
+            // تحديث أيقونة الزر
+            var btn = document.getElementById('themeToggleBtn');
+            if (btn) {
+                var icon = btn.querySelector('.toggle-icon');
+                var text = btn.querySelector('.toggle-text');
+                if (next === 'dark') {
+                    icon.textContent = '\u263E'; // ☾
+                    if (text) text.textContent = '\u0646\u0647\u0627\u0631\u064A'; // نهاري
+                } else {
+                    icon.textContent = '\u2600'; // ☀
+                    if (text) text.textContent = '\u0644\u064A\u0644\u064A'; // ليلي
+                }
+            }
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

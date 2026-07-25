@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة إجازة / مهمة{% endblock %}
+
+{% block styles %}
+    <style>
+        .tab-nav {
+            display: flex; gap: 0; margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 12px 20px; border: none; cursor: pointer;
+            font-family: inherit; font-size: 13px; font-weight: bold;
+            background: #ecf0f1; color: #7f8c8d;
+            transition: all 0.3s;
+        }
+        .tab-btn:first-child { border-radius: 8px 0 0 8px; }
+        .tab-btn:last-child { border-radius: 0 8px 8px 0; }
+        .tab-btn.active {
+            background: #3498db; color: white;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .form-box {
+            background: white; border-radius: 8px; padding: 25px;
+            max-width: 600px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: #333; font-weight: bold;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 10px; border: 1px solid #ddd;
+            border-radius: 5px; font-family: inherit;
+        }
+        .form-group textarea { height: 80px; resize: vertical; }
+        .btn-save {
+            background: #27ae60; color: white; padding: 10px 30px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+        }
+        .btn-cancel {
+            background: #95a5a6; color: white; padding: 10px 30px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+            text-decoration: none; display: inline-block;
+        }
+        .info-box {
+            background: #eaf6ff; border: 1px solid #3498db; border-radius: 5px;
+            padding: 10px 15px; margin-bottom: 15px; font-size: 12px; color: #2c3e50;
+        }
+        .info-box strong { color: #2980b9; }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <h1>إضافة طلب جديد</h1>
+
+    <div class="tab-nav">
+        <button class="tab-btn {% if default_tab == 'leave' %}active{% endif %}" onclick="switchTab(event, 'leave')">إجازة</button>
+        <button class="tab-btn {% if default_tab == 'absence' %}active{% endif %}" onclick="switchTab(event, 'absence')">غياب</button>
+        <button class="tab-btn {% if default_tab == 'task' %}active{% endif %}" onclick="switchTab(event, 'task')">مهمة / عمل إضافي</button>
+    </div>
+
+    <!-- نموذج الإجازة -->
+    <div class="tab-content {% if default_tab == 'leave' %}active{% endif %}" id="tab-leave">
+        <div class="form-box">
+            <form action="{{ url_for('leaves.leave_add') }}" method="POST" id="leaveForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="request_category" value="leave">
+                <div class="form-group">
+                    <label>الموظف *</label>
+                    <select name="employee_id" required>
+                        <option value="">اختر الموظف</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}">{{ emp.name }} {% if emp.status != 'active' %}(غير نشط){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>نوع الإجازة *</label>
+                    <select name="leave_type" required id="leaveTypeSelect">
+                        <option value="paid">إجازة مأجورة</option>
+                        <option value="unpaid">إجازة بلا راتب</option>
+                        <option value="medical">إجازة صحية</option>
+                        <option value="maternity">إجازة أمومة</option>
+                        <option value="hourly">إجازة ساعية</option>
+                    </select>
+                </div>
+
+                <!-- حقول التاريخ للأجازات العادية -->
+                <div id="dateFields">
+                    <div class="form-group">
+                        <label>من تاريخ *</label>
+                        <input type="date" name="start_date" id="startDateInput" required>
+                    </div>
+                    <div class="form-group">
+                        <label>إلى تاريخ *</label>
+                        <input type="date" name="end_date" id="endDateInput" required>
+                    </div>
+                </div>
+
+                <!-- حقول الوقت للإجازة الساعية -->
+                <div id="timeFields" style="display:none;">
+                    <div class="info-box">
+                        <strong>ملاحظة:</strong> الإجازة الساعية تحتسب من ساعة لأخرى. إذا لم يعد الموظف بالوقت المحدد يُحتسب غياب. كل 24 ساعة إجازة ساعية = يوم غياب كامل.
+                    </div>
+                    <div class="form-group">
+                        <label>التاريخ *</label>
+                        <input type="date" name="hourly_date" id="hourlyDateField">
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label>من الساعة *</label>
+                            <input type="time" name="start_time" id="startTimeInput">
+                        </div>
+                        <div style="flex:1;">
+                            <label>إلى الساعة *</label>
+                            <input type="time" name="end_time" id="endTimeInput">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>السبب</label>
+                    <textarea name="reason"></textarea>
+                </div>
+                <button type="submit" class="btn-save">إرسال الطلب</button>
+                <a href="{{ url_for('leaves.leaves') }}" class="btn-cancel">إلغاء</a>
+            </form>
+        </div>
+    </div>
+
+    <!-- نموذج الغياب -->
+    <div class="tab-content {% if default_tab == 'absence' %}active{% endif %}" id="tab-absence">
+        <div class="form-box">
+            <form action="{{ url_for('leaves.leave_add') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="request_category" value="absence">
+                <div class="form-group">
+                    <label>الموظف *</label>
+                    <select name="employee_id" required>
+                        <option value="">اختر الموظف</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}">{{ emp.name }} {% if emp.status != 'active' %}(غير نشط){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>نوع الغياب *</label>
+                    <select name="absence_type" required>
+                        <option value="justified">غياب مبرر</option>
+                        <option value="unjustified">غياب غير مبرر</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>التاريخ *</label>
+                    <input type="date" name="absence_date" required>
+                </div>
+                <div class="form-group">
+                    <label>السبب / الملاحظات</label>
+                    <textarea name="absence_reason"></textarea>
+                </div>
+                <button type="submit" class="btn-save">تسجيل الغياب</button>
+                <a href="{{ url_for('leaves.leaves') }}" class="btn-cancel">إلغاء</a>
+            </form>
+        </div>
+    </div>
+
+    <!-- نموذج المهمة -->
+    <div class="tab-content {% if default_tab == 'task' %}active{% endif %}" id="tab-task">
+        <div class="form-box">
+            <form action="{{ url_for('leaves.leave_add') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="request_category" value="task">
+                <div class="form-group">
+                    <label>الموظف *</label>
+                    <select name="employee_id" required>
+                        <option value="">اختر الموظف</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}">{{ emp.name }} {% if emp.status != 'active' %}(غير نشط){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>النوع *</label>
+                    <select name="task_type" required>
+                        <option value="admin_task">مهمة إدارية</option>
+                        <option value="overtime">ساعات عمل إضافية</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>التاريخ *</label>
+                    <input type="date" name="task_date" required>
+                </div>
+                <div class="form-group">
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label>من الساعة *</label>
+                            <input type="time" name="task_start_time" required>
+                        </div>
+                        <div style="flex:1;">
+                            <label>إلى الساعة *</label>
+                            <input type="time" name="task_end_time" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>الوصف</label>
+                    <textarea name="task_description"></textarea>
+                </div>
+                <button type="submit" class="btn-save">تسجيل المهمة</button>
+                <a href="{{ url_for('leaves.leaves') }}" class="btn-cancel">إلغاء</a>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // تبديل التابات - مع تمرير event بشكل صحيح
+        function switchTab(evt, tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById('tab-' + tab).classList.add('active');
+            if (evt && evt.target) {
+                evt.target.classList.add('active');
+            }
+        }
+
+        // إظهار/إخفاء حقول الوقت حسب نوع الإجازة
+        document.getElementById('leaveTypeSelect').addEventListener('change', function() {
+            const timeFields = document.getElementById('timeFields');
+            const dateFields = document.getElementById('dateFields');
+            const startDateInput = document.getElementById('startDateInput');
+            const endDateInput = document.getElementById('endDateInput');
+            const hourlyDateField = document.getElementById('hourlyDateField');
+            const startTimeInput = document.getElementById('startTimeInput');
+            const endTimeInput = document.getElementById('endTimeInput');
+
+            if (this.value === 'hourly') {
+                timeFields.style.display = 'block';
+                dateFields.style.display = 'none';
+                // إزالة required من حقول التاريخ العادية
+                startDateInput.removeAttribute('required');
+                endDateInput.removeAttribute('required');
+                // إضافة required لحقول الإجازة الساعية
+                hourlyDateField.setAttribute('required', 'required');
+                startTimeInput.setAttribute('required', 'required');
+                endTimeInput.setAttribute('required', 'required');
+            } else {
+                timeFields.style.display = 'none';
+                dateFields.style.display = 'block';
+                // إعادة required لحقول التاريخ العادية
+                startDateInput.setAttribute('required', 'required');
+                endDateInput.setAttribute('required', 'required');
+                // إزالة required من حقول الإجازة الساعية
+                hourlyDateField.removeAttribute('required');
+                startTimeInput.removeAttribute('required');
+                endTimeInput.removeAttribute('required');
+            }
+        });
+
+        // عند تقديم نموذج الإجازة الساعية، انسخ التاريخ لحقول start_date و end_date
+        document.getElementById('leaveForm').addEventListener('submit', function(e) {
+            const leaveType = document.getElementById('leaveTypeSelect').value;
+            if (leaveType === 'hourly') {
+                const hourlyDate = document.getElementById('hourlyDateField').value;
+                const startTime = document.getElementById('startTimeInput').value;
+                const endTime = document.getElementById('endTimeInput').value;
+
+                // التحقق من تعبئة جميع الحقول المطلوبة
+                if (!hourlyDate) {
+                    e.preventDefault();
+                    alert('يرجى اختيار التاريخ');
+                    return;
+                }
+                if (!startTime || !endTime) {
+                    e.preventDefault();
+                    alert('يرجى تحديد وقت البداية والنهاية');
+                    return;
+                }
+
+                // نسخ التاريخ لحقول start_date و end_date
+                const startDateInput = document.getElementById('startDateInput');
+                const endDateInput = document.getElementById('endDateInput');
+                startDateInput.value = hourlyDate;
+                endDateInput.value = hourlyDate;
+                startDateInput.removeAttribute('required');
+                endDateInput.removeAttribute('required');
+            }
+        });
+
+        // تفعيل required للإجازة الساعية إذا كانت هي التاب الافتراضي
+        document.addEventListener('DOMContentLoaded', function() {
+            const leaveTypeSelect = document.getElementById('leaveTypeSelect');
+            if (leaveTypeSelect.value === 'hourly') {
+                leaveTypeSelect.dispatchEvent(new Event('change'));
+            }
+        });
+    </script>
+{% endblock %}

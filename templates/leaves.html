@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}الإجازات{% endblock %}
+
+{% block styles %}
+    <style>
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .btn-add {
+            background: #27ae60; color: white; padding: 10px 20px;
+            text-decoration: none; border-radius: 5px; font-size: 14px;
+        }
+        .btn-add:hover { background: #219a52; }
+        .btn-approve {
+            background: #27ae60; color: white; padding: 5px 12px;
+            border-radius: 4px; text-decoration: none; font-size: 12px;
+        }
+        .btn-reject {
+            background: #e67e22; color: white; padding: 5px 12px;
+            border-radius: 4px; text-decoration: none; font-size: 12px;
+        }
+        .btn-delete {
+            background: #e74c3c; color: white; padding: 5px 12px;
+            border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
+        }
+        .status-pending { color: #f39c12; font-weight: bold; }
+        .status-approved { color: #27ae60; font-weight: bold; }
+        .status-rejected { color: #e74c3c; font-weight: bold; }
+        .section-title {
+            color: #2c3e50; margin: 25px 0 15px 0; padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+
+        /* شارات أنواع الإجازات */
+        .leave-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 11px; font-weight: bold; color: white;
+        }
+        .leave-paid { background: #27ae60; }
+        .leave-unpaid { background: #e74c3c; }
+        .leave-medical { background: #3498db; }
+        .leave-maternity { background: #9b59b6; }
+        .leave-hourly { background: #f39c12; }
+
+        /* شارات أنواع المهام */
+        .task-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 11px; font-weight: bold; color: white;
+        }
+        .task-admin { background: #e67e22; }
+        .task-overtime { background: #27ae60; }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>الإجازات والمهام</h1>
+        <a href="{{ url_for('leaves.leave_add') }}" class="btn-add">إضافة طلب جديد</a>
+    </div>
+
+    <!-- قسم الإجازات -->
+    <h3 class="section-title">طلبات الإجازة</h3>
+    <div class="table-box">
+        <table>
+            <thead>
+                <tr>
+                    <th>الموظف</th>
+                    <th>النوع</th>
+                    <th>من</th>
+                    <th>إلى</th>
+                    <th>الوقت</th>
+                    <th>السبب</th>
+                    <th>الحالة</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in leaves %}
+                <tr>
+                    <td>{{ leave.employee.name if leave.employee else '-' }}</td>
+                    <td>
+                        {% if leave.leave_type == 'paid' %}
+                            <span class="leave-badge leave-paid">مأجورة</span>
+                        {% elif leave.leave_type == 'unpaid' %}
+                            <span class="leave-badge leave-unpaid">بلا راتب</span>
+                        {% elif leave.leave_type == 'medical' %}
+                            <span class="leave-badge leave-medical">صحية</span>
+                        {% elif leave.leave_type == 'maternity' %}
+                            <span class="leave-badge leave-maternity">أمومة</span>
+                        {% elif leave.leave_type == 'hourly' %}
+                            <span class="leave-badge leave-hourly">ساعية</span>
+                        {% else %}
+                            {{ leave.leave_type }}
+                        {% endif %}
+                    </td>
+                    <td>{{ leave.start_date }}</td>
+                    <td>{{ leave.end_date }}</td>
+                    <td>
+                        {% if leave.leave_type == 'hourly' and leave.start_time %}
+                            <span style="direction:ltr;">{{ leave.start_time.strftime('%H:%M') }} - {{ leave.end_time.strftime('%H:%M') if leave.end_time else '-' }}</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ leave.reason or '-' }}</td>
+                    <td class="{% if leave.status == 'pending' %}status-pending{% elif leave.status == 'approved' %}status-approved{% else %}status-rejected{% endif %}">
+                        {% if leave.status == 'pending' %}معلق
+                        {% elif leave.status == 'approved' %}مقبول
+                        {% else %}مرفوض{% endif %}
+                    </td>
+                    <td>
+                        {% if leave.status == 'pending' %}
+                            <a href="{{ url_for('leaves.leave_approve', id=leave.id) }}" class="btn-approve">قبول</a>
+                            <a href="{{ url_for('leaves.leave_reject', id=leave.id) }}" class="btn-reject">رفض</a>
+                        {% endif %}
+                        <form action="{{ url_for('leaves.leave_delete', id=leave.id) }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-delete" onclick="return confirm('حذف الإجازة؟')">حذف</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align:center; color:#999; padding:30px;">لا توجد طلبات إجازة</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- قسم المهام -->
+    <h3 class="section-title">المهام والعمل الإضافي</h3>
+    <div class="table-box">
+        <table>
+            <thead>
+                <tr>
+                    <th>الموظف</th>
+                    <th>النوع</th>
+                    <th>التاريخ</th>
+                    <th>الوقت</th>
+                    <th>الساعات</th>
+                    <th>الوصف</th>
+                    <th>إجراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>{{ task.employee.name if task.employee else '-' }}</td>
+                    <td>
+                        {% if task.task_type == 'admin_task' %}
+                            <span class="task-badge task-admin">مهمة إدارية</span>
+                        {% else %}
+                            <span class="task-badge task-overtime">عمل إضافي</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ task.date }}</td>
+                    <td style="direction: ltr; text-align: right;">
+                        {{ task.start_time.strftime('%H:%M') if task.start_time else '-' }} -
+                        {{ task.end_time.strftime('%H:%M') if task.end_time else '-' }}
+                    </td>
+                    <td>{{ task.total_hours }} ساعة</td>
+                    <td>{{ task.description or '-' }}</td>
+                    <td>
+                        <form action="{{ url_for('tasks.task_delete', id=task.id) }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-delete" onclick="return confirm('حذف المهمة؟')">حذف</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align:center; color:#999; padding:30px;">لا توجد مهام مسجلة</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

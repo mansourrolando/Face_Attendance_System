@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}تقويم الحضور{% endblock %}
+
+{% block styles %}
+    <style>
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .filter-card {
+            background: white; border-radius: 8px; padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px;
+        }
+        .filter-row {
+            display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;
+        }
+        .filter-group { flex: 1; min-width: 150px; }
+        .filter-group label {
+            display: block; margin-bottom: 5px; color: #333;
+            font-weight: bold; font-size: 14px;
+        }
+        .filter-group select,
+        .filter-group input {
+            width: 100%; padding: 8px 10px; border: 1px solid #ddd;
+            border-radius: 5px; font-family: inherit; font-size: 14px;
+        }
+        .btn-filter {
+            background: #3498db; color: white; padding: 8px 20px;
+            border: none; border-radius: 5px; cursor: pointer;
+            font-family: inherit; font-size: 14px; white-space: nowrap;
+        }
+        .btn-filter:hover { background: #2980b9; }
+
+        /* التنقل بين الأشهر */
+        .month-nav {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .month-nav h3 {
+            color: #2c3e50; font-size: 20px; margin: 0;
+        }
+        .btn-nav {
+            background: white; color: #2c3e50; padding: 8px 16px;
+            border: 2px solid #3498db; border-radius: 5px; cursor: pointer;
+            text-decoration: none; font-family: inherit; font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn-nav:hover {
+            background: #3498db; color: white;
+        }
+
+        /* مفتاح الألوان */
+        .legend-bar {
+            display: flex; gap: 15px; flex-wrap: wrap;
+            margin-bottom: 20px; padding: 10px 15px;
+            background: white; border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .legend-item {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 13px; color: #555;
+        }
+        .legend-color {
+            width: 16px; height: 16px; display: inline-block;
+            border-radius: 3px;
+        }
+
+        /* جدول التقويم */
+        .calendar-box {
+            background: white; border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            overflow: auto; max-height: 70vh;
+        }
+        .calendar-box table {
+            font-size: 12px; min-width: 800px;
+        }
+        .calendar-box th {
+            min-width: 45px; padding: 8px 4px;
+            text-align: center; font-size: 12px;
+            position: sticky; top: 0; z-index: 2;
+            background: #f8f9fa;
+        }
+        .calendar-box th:first-child {
+            min-width: 140px; position: sticky;
+            left: 0; z-index: 3; text-align: right;
+        }
+        .calendar-box td {
+            text-align: center; padding: 4px 2px;
+            font-size: 12px;
+        }
+        .calendar-box td:first-child {
+            position: sticky; left: 0; z-index: 1;
+            background: white; font-weight: bold;
+            text-align: right; padding: 6px 8px;
+        }
+        .calendar-box tfoot td {
+            font-weight: bold; background: #f8f9fa;
+            padding: 8px 4px;
+        }
+
+        /* ألوان الحالات */
+        .cell-present { background: #D5F5E3; }
+        .cell-late { background: #FDEBD0; }
+        .cell-absent { background: #FADBD8; }
+        .cell-leave { background: #D6EAF8; }
+        .cell-weekend { background: #F5F5F5; }
+        .cell-holiday { background: #FFE0B2; }
+        .cell-future { background: #F8F9FA; }
+
+        .text-present { color: #27AE60; font-weight: bold; }
+        .text-late { color: #E67E22; font-weight: bold; }
+        .text-absent { color: #E74C3C; font-weight: bold; }
+        .text-leave { color: #3498DB; font-weight: bold; }
+        .text-weekend { color: #95A5A6; }
+        .text-holiday { color: #E67E22; }
+        .text-future { color: #BDC3C7; }
+
+        /* خلية انصراف مبكر - حدود حمراء */
+        .early-checkout-cell {
+            border: 2px solid #C0392B !important;
+            position: relative;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>تقويم الحضور</h1>
+    </div>
+
+    <!-- فلترة -->
+    <div class="filter-card">
+        <form method="GET" action="{{ url_for('attendance_calendar.attendance_calendar') }}">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>القسم</label>
+                    <select name="department_id">
+                        <option value="">جميع الأقسام</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if selected_department == dept.id %}selected{% endif %}>{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>الموظف</label>
+                    <select name="employee_id">
+                        <option value="">جميع الموظفين</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}" {% if selected_employee == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group" style="max-width:120px;">
+                    <label>الشهر</label>
+                    <select name="month">
+                        {% for m in range(1, 13) %}
+                        <option value="{{ m }}" {% if selected_month == m %}selected{% endif %}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group" style="max-width:120px;">
+                    <label>السنة</label>
+                    <input type="number" name="year" value="{{ selected_year }}" min="2020" max="2030">
+                </div>
+                <div class="filter-group" style="flex:0; min-width:auto;">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn-filter">عرض</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- التنقل بين الأشهر -->
+    <div class="month-nav">
+        <a href="{{ url_for('attendance_calendar.attendance_calendar', year=prev_year, month=prev_month, employee_id=selected_employee or '', department_id=selected_department or '') }}" class="btn-nav">
+            الشهر السابق
+        </a>
+        <h3>{{ month_name }} {{ selected_year }}</h3>
+        <a href="{{ url_for('attendance_calendar.attendance_calendar', year=next_year, month=next_month, employee_id=selected_employee or '', department_id=selected_department or '') }}" class="btn-nav">
+            الشهر التالي
+        </a>
+    </div>
+
+    <!-- مفتاح الألوان -->
+    <div class="legend-bar">
+        <span class="legend-item"><span class="legend-color" style="background:#27AE60;"></span> حاضر</span>
+        <span class="legend-item"><span class="legend-color" style="background:#E67E22;"></span> متأخر</span>
+        <span class="legend-item"><span class="legend-color" style="background:#E74C3C;"></span> غائب</span>
+        <span class="legend-item"><span class="legend-color" style="background:#3498DB;"></span> إجازة</span>
+        <span class="legend-item"><span class="legend-color" style="background:#95A5A6;"></span> عطلة</span>
+        <span class="legend-item"><span class="legend-color" style="background:#ECF0F1; border:1px solid #BDC3C7;"></span> مستقبلي</span>
+        <span class="legend-item"><span class="legend-color" style="background:#FADBD8; border:2px solid #C0392B;"></span> انصراف مبكر</span>
+    </div>
+
+    <!-- التقويم -->
+    <div class="calendar-box">
+        <table>
+            <thead>
+                <tr>
+                    <th>الموظف</th>
+                    {% for day in month_days %}
+                    <th class="text-center" style="{% if day in holiday_days %}background:#FFE0B2;{% endif %}">{{ day }}</th>
+                    {% endfor %}
+                    <th>حضور</th>
+                    <th>تأخير</th>
+                    <th>غياب</th>
+                    <th>مبكر</th>
+                    <th>ساعات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp_data in calendar_data %}
+                <tr>
+                    <td>{{ emp_data.employee.name }}</td>
+                    {% for day_info in emp_data.days %}
+                    <td class="{% if day_info.is_weekend %}cell-weekend{% elif day_info.is_holiday %}cell-holiday{% elif day_info.is_future %}cell-future{% elif day_info.status == 'present' %}cell-present{% elif day_info.status == 'late' %}cell-late{% elif day_info.status == 'absent' %}cell-absent{% elif day_info.status == 'leave' %}cell-leave{% endif %}{% if day_info.early_checkout %} early-checkout-cell{% endif %}"
+                        title="{% if day_info.is_holiday %}{{ day_info.holiday_name }}{% elif day_info.status %}{{ day_info.time_in.strftime('%H:%M') if day_info.time_in else '' }} - {{ day_info.time_out.strftime('%H:%M') if day_info.time_out else '' }}{% if day_info.late_minutes %} | تأخير: {{ day_info.late_minutes }}د{% endif %}{% if day_info.early_checkout %} | انصراف مبكر{% endif %}{% endif %}">
+                        {% if day_info.is_future %}
+                            <span class="text-future">-</span>
+                        {% elif day_info.is_weekend %}
+                            <span class="text-weekend">ج</span>
+                        {% elif day_info.is_holiday %}
+                            <span class="text-holiday">ع</span>
+                        {% elif day_info.status == 'present' %}
+                            <span class="text-present">ح</span>{% if day_info.early_checkout %}<small style="color:#c0392b; font-size:9px;">م</small>{% endif %}
+                        {% elif day_info.status == 'late' %}
+                            <span class="text-late">م</span>{% if day_info.early_checkout %}<small style="color:#c0392b; font-size:9px;">م</small>{% endif %}
+                        {% elif day_info.status == 'absent' %}
+                            <span class="text-absent">غ</span>
+                        {% elif day_info.status == 'leave' %}
+                            <span class="text-leave">إ</span>
+                        {% else %}
+                            <span class="text-future">-</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    <td><strong style="color:#27AE60;">{{ emp_data.summary.present }}</strong></td>
+                    <td><strong style="color:#E67E22;">{{ emp_data.summary.late }}</strong></td>
+                    <td><strong style="color:#E74C3C;">{{ emp_data.summary.absent }}</strong></td>
+                    <td><strong style="color:#C0392B;">{{ emp_data.summary.early_checkouts }}</strong></td>
+                    <td>{{ '%.1f'|format(emp_data.summary.total_hours) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

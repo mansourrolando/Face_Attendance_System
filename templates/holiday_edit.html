@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل عطلة{% endblock %}
+
+{% block styles %}
+    <style>
+        .form-box {
+            background: white; border-radius: 8px; padding: 25px;
+            max-width: 550px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: #333; font-weight: bold;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 10px; border: 1px solid #ddd;
+            border-radius: 5px; font-family: inherit;
+        }
+        .form-group textarea { height: 80px; resize: vertical; }
+        .form-group .hint {
+            font-size: 12px; color: #999; margin-top: 3px;
+        }
+        .form-group .checkbox-row {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .form-group .checkbox-row input[type="checkbox"] {
+            width: 18px; height: 18px; cursor: pointer;
+        }
+        .btn-save {
+            background: #27ae60; color: white; padding: 10px 30px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+        }
+        .btn-save:hover { background: #219a52; }
+        .btn-cancel {
+            background: #7f8c8d; color: white; padding: 10px 20px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+            text-decoration: none; display: inline-block; margin-right: 10px;
+        }
+
+        /* معلومات العطلة الحالية */
+        .current-info {
+            background: #fff3cd; border-radius: 8px; padding: 12px 15px;
+            margin-bottom: 20px; max-width: 550px;
+            border-right: 4px solid #f39c12;
+        }
+        .current-info h3 {
+            color: #856404; font-size: 13px; margin-bottom: 5px;
+        }
+        .current-info p {
+            color: #856404; font-size: 12px; margin: 2px 0;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <h1>تعديل بيانات العطلة</h1>
+
+    <!-- معلومات العطلة الحالية -->
+    <div class="current-info">
+        <h3>البيانات الحالية</h3>
+        <p><strong>الاسم:</strong> {{ holiday.name }}</p>
+        <p><strong>التاريخ:</strong> {{ holiday.date.strftime('%Y-%m-%d') }}</p>
+        <p><strong>النوع:</strong> {{ holiday_types.get(holiday.holiday_type, holiday.holiday_type) }}</p>
+        <p><strong>متكررة:</strong> {% if holiday.is_recurring %}نعم{% else %}لا{% endif %}</p>
+    </div>
+
+    <div class="form-box">
+        <form action="{{ url_for('holidays.holiday_edit', id=holiday.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label>اسم العطلة</label>
+                <input type="text" name="name" required value="{{ holiday.name }}" placeholder="مثال: عيد الفطر - اليوم الأول">
+            </div>
+
+            <div class="form-group">
+                <label>التاريخ</label>
+                <input type="date" name="date" required value="{{ holiday.date.strftime('%Y-%m-%d') }}">
+            </div>
+
+            <div class="form-group">
+                <label>نوع العطلة</label>
+                <select name="holiday_type">
+                    {% for key, label in holiday_types.items() %}
+                    <option value="{{ key }}" {% if key == holiday.holiday_type %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-row">
+                    <input type="checkbox" name="is_recurring" id="isRecurring" {% if holiday.is_recurring %}checked{% endif %}>
+                    <label for="isRecurring" style="margin-bottom: 0; cursor: pointer;">عطلة متكررة سنوياً</label>
+                </div>
+                <div class="hint">اختر هذا الخيار إذا كانت العطلة تتكرر بنفس التاريخ كل سنة (مثل: يوم العمال 1/5، عيد الميلاد 25/12)</div>
+            </div>
+
+            <div class="form-group">
+                <label>ملاحظات</label>
+                <textarea name="notes" placeholder="ملاحظات إضافية (اختياري)">{{ holiday.notes or '' }}</textarea>
+            </div>
+
+            <a href="{{ url_for('holidays.holidays') }}" class="btn-cancel">إلغاء</a>
+            <button type="submit" class="btn-save">حفظ التعديلات</button>
+        </form>
+    </div>
+{% endblock %}

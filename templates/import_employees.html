@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}استيراد موظفين{% endblock %}
+
+{% block styles %}
+    <style>
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .btn-back {
+            background: #95a5a6; color: white; padding: 8px 18px;
+            border-radius: 5px; text-decoration: none; font-size: 14px;
+        }
+        .btn-back:hover { background: #7f8c8d; }
+
+        .template-info {
+            background: #eaf7ea; border: 1px solid #27ae60;
+            border-radius: 8px; padding: 15px; margin-bottom: 20px;
+            max-width: 700px;
+        }
+        .template-info h3 { color: #27ae60; margin-bottom: 10px; font-size: 16px; }
+        .template-info ul { padding-right: 20px; }
+        .template-info li { margin-bottom: 5px; color: #555; font-size: 13px; }
+
+        .form-box {
+            background: white; border-radius: 8px; padding: 25px;
+            max-width: 700px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: #333; font-weight: bold;
+            font-size: 14px;
+        }
+        .file-input {
+            width: 100%; padding: 15px; border: 2px dashed #3498db;
+            border-radius: 8px; text-align: center; cursor: pointer;
+            background: #f8f9fa; font-size: 14px;
+        }
+        .file-input:hover { border-color: #2980b9; background: #ebf5fb; }
+
+        .btn-import {
+            background: #27ae60; color: white; padding: 12px 30px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 15px;
+            font-weight: bold;
+        }
+        .btn-import:hover { background: #219a52; }
+
+        .btn-template {
+            background: #3498db; color: white; padding: 10px 20px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+            text-decoration: none; display: inline-block;
+        }
+        .btn-template:hover { background: #2980b9; }
+
+        .btn-cancel {
+            background: #95a5a6; color: white; padding: 10px 20px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+            text-decoration: none; display: inline-block; margin-right: 10px;
+        }
+
+        .template-download-box {
+            background: #d6eaf8; border: 1px solid #85c1e9;
+            border-radius: 8px; padding: 15px; margin-bottom: 20px;
+            max-width: 700px; display: flex; align-items: center;
+            justify-content: space-between; gap: 15px;
+        }
+        .template-download-box .info-text {
+            font-size: 14px; color: #2c3e50;
+        }
+        .template-download-box .info-text strong { color: #1a5276; }
+
+        .column-table {
+            width: 100%; border-collapse: collapse; margin-top: 10px;
+            max-width: 600px;
+        }
+        .column-table th {
+            background: #27ae60; color: white; padding: 8px 12px;
+            text-align: right; font-size: 13px;
+        }
+        .column-table td {
+            padding: 6px 12px; border-bottom: 1px solid #eee;
+            font-size: 13px; color: #555;
+        }
+        .column-table tr:hover td { background: #f8f9fa; }
+        .badge-required {
+            background: #e74c3c; color: white; padding: 2px 8px;
+            border-radius: 3px; font-size: 11px;
+        }
+        .badge-optional {
+            background: #95a5a6; color: white; padding: 2px 8px;
+            border-radius: 3px; font-size: 11px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>استيراد موظفين من Excel</h1>
+        <a href="{{ url_for('employees.employees') }}" class="btn-back">رجوع</a>
+    </div>
+
+    <!-- تحميل القالب النموذجي -->
+    <div class="template-download-box">
+        <div class="info-text">
+            <strong>تحميل قالب نموذجي</strong><br>
+            حمّل ملف Excel جاهز بالأعمدة الصحيحة، عبّئو وارفعو مباشرة
+        </div>
+        <a href="{{ url_for('reports.download_import_template') }}" class="btn-template">
+            تحميل القالب
+        </a>
+    </div>
+
+    <!-- تنسيق الملف المطلوب -->
+    <div class="template-info">
+        <h3>تنسيق الملف المطلوب</h3>
+        <p style="color:#555; margin-bottom:10px; font-size:14px;">يجب أن يحتوي ملف Excel على الأعمدة التالية:</p>
+        <table class="column-table">
+            <thead>
+                <tr>
+                    <th>عنوان العمود</th>
+                    <th>أسماء بديلة مقبولة</th>
+                    <th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>الاسم</strong></td>
+                    <td>الموظف، اسم الموظف، name</td>
+                    <td><span class="badge-required">مطلوب</span></td>
+                </tr>
+                <tr>
+                    <td>البريد</td>
+                    <td>البريد الإلكتروني، email</td>
+                    <td><span class="badge-optional">اختياري</span></td>
+                </tr>
+                <tr>
+                    <td>الهاتف</td>
+                    <td>رقم الهاتف، phone، جوال</td>
+                    <td><span class="badge-optional">اختياري</span></td>
+                </tr>
+                <tr>
+                    <td>الوظيفة</td>
+                    <td>المسمى الوظيفي، position</td>
+                    <td><span class="badge-optional">اختياري</span></td>
+                </tr>
+                <tr>
+                    <td>القسم</td>
+                    <td>department، القسم/الإدارة</td>
+                    <td><span class="badge-optional">اختياري</span></td>
+                </tr>
+            </tbody>
+        </table>
+        <ul style="margin-top:10px;">
+            <li>عمود <strong>"الاسم"</strong> مطلوب - يجب أن يحتوي على <strong>اسم الموظف</strong> وليس الرقم الوظيفي</li>
+            <li>عمود <strong>"القسم"</strong> يجب أن يحتوي على اسم قسم موجود مسبقاً في النظام</li>
+            <li>الموظف المكرر (بنفس الاسم) سيتم تخطيه تلقائياً</li>
+        </ul>
+    </div>
+
+    <!-- نموذج الرفع -->
+    <div class="form-box">
+        <form action="{{ url_for('reports.import_employees') }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label>اختر ملف Excel</label>
+                <input type="file" name="file" accept=".xlsx,.xls" class="file-input" required>
+            </div>
+
+            <button type="submit" class="btn-import">استيراد الموظفين</button>
+            <a href="{{ url_for('employees.employees') }}" class="btn-cancel">إلغاء</a>
+        </form>
+    </div>
+{% endblock %}

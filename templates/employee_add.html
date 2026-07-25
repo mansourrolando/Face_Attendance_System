@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة موظف{% endblock %}
+
+{% block styles %}
+    <style>
+        .form-box {
+            background: white; border-radius: 8px; padding: 25px;
+            max-width: 600px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: #333; font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px; border: 1px solid #ddd;
+            border-radius: 5px; font-family: inherit;
+        }
+        .btn-save {
+            background: #27ae60; color: white; padding: 10px 30px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+        }
+        .btn-cancel {
+            background: #95a5a6; color: white; padding: 10px 30px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+            text-decoration: none; display: inline-block;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <h1>إضافة موظف جديد</h1>
+
+    <div class="form-box">
+        <form action="{{ url_for('employees.employee_add') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label>الاسم الكامل *</label>
+                <input type="text" name="name" required>
+            </div>
+            <div class="form-group">
+                <label>القسم</label>
+                <select name="department_id">
+                    <option value="">اختر القسم</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}">{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>البريد الإلكتروني</label>
+                <input type="email" name="email">
+            </div>
+            <div class="form-group">
+                <label>الوظيفة</label>
+                <input type="text" name="position">
+            </div>
+            <div class="form-group">
+                <label>رقم الهاتف</label>
+                <input type="text" name="phone">
+            </div>
+            <div class="form-group">
+                <label>تاريخ التوظيف</label>
+                <input type="date" name="hire_date" id="hireDate">
+                <small style="color:#888; font-size:12px; margin-top:4px; display:block;">اتركه فارغاً لتعيين تاريخ اليوم تلقائياً</small>
+            </div>
+            <button type="submit" class="btn-save">إضافة الموظف</button>
+            <a href="{{ url_for('employees.employees') }}" class="btn-cancel">إلغاء</a>
+        </form>
+    </div>
+{% endblock %}

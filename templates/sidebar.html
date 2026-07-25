@@ -1,0 +1,75 @@
+<!-- sidebar.html - الشريط الجانبي المشترك -->
+<div class="sidebar">
+    <h2 style="color:white">{{ session.get('user_name', 'المدير') }}</h2>
+
+    <!-- الساعة والتاريخ -->
+    <div class="sidebar-clock" style="text-align:center; margin-bottom:20px; padding:10px 5px; background:rgba(255,255,255,0.08); border-radius:8px;">
+        <div id="sidebarTime" style="font-size:28px; font-weight:900; color:#3498db; letter-spacing:2px; font-family:'Courier New', monospace; direction:ltr;">00:00:00</div>
+        <div id="sidebarDate" style="font-size:11px; color:#7f8c8d; margin-top:4px;">---</div>
+    </div>
+
+    <!-- زر تبديل الوضع الليلي -->
+    <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" style="display:flex; margin:0 auto 15px auto; width:calc(100% - 20px); justify-content:center;">
+        <span class="toggle-icon">&#9728;</span>
+        <span class="toggle-text" style="font-size:12px;">ليلي</span>
+    </button>
+
+    <a href="{{ url_for('dashboard.dashboard') }}" {% if request.endpoint == 'dashboard.dashboard' %}class="active"{% endif %}>لوحة التحكم</a>
+    <a href="{{ url_for('employees.employees') }}" {% if request.endpoint in ['employees.employees', 'employees.employee_add', 'employees.employee_edit', 'employees.employee_view', 'face.register_face_page'] %}class="active"{% endif %}>الموظفين</a>
+    <a href="{{ url_for('reports.import_employees') }}" class="sidebar-sub" {% if request.endpoint == 'reports.import_employees' %}style="background:rgba(52,152,219,0.15); color:#3498db;"{% endif %}>استيراد من Excel</a>
+    <a href="{{ url_for('departments.departments') }}" {% if request.endpoint in ['departments.departments', 'departments.department_add', 'departments.department_edit'] %}class="active"{% endif %}>الأقسام</a>
+    <a href="{{ url_for('attendance.attendance_page') }}" {% if request.endpoint in ['attendance.attendance_page', 'attendance_manage.attendance_add', 'attendance_manage.attendance_edit'] %}class="active"{% endif %}>الحضور</a>
+    <a href="{{ url_for('attendance_manage.attendance_add') }}" class="sidebar-sub" {% if request.endpoint == 'attendance_manage.attendance_add' %}style="background:rgba(52,152,219,0.15); color:#3498db;"{% endif %}>إضافة حضور يدوي</a>
+    <a href="{{ url_for('attendance_calendar.attendance_calendar') }}" {% if request.endpoint == 'attendance_calendar.attendance_calendar' %}class="active"{% endif %}>تقويم الحضور</a>
+    <a href="{{ url_for('reports.reports') }}" {% if request.endpoint == 'reports.reports' %}class="active"{% endif %}>التقارير</a>
+    <a href="{{ url_for('leaves.leaves') }}" {% if request.endpoint in ['leaves.leaves', 'leaves.leave_add'] %}class="active"{% endif %}>الإجازات</a>
+    <a href="{{ url_for('tasks.tasks') }}" {% if request.endpoint == 'tasks.tasks' %}class="active"{% endif %}>المهام</a>
+    <a href="{{ url_for('holidays.holidays') }}" {% if request.endpoint in ['holidays.holidays', 'holidays.holiday_add', 'holidays.holiday_edit'] %}class="active"{% endif %}>العطل الرسمية</a>
+    <a href="{{ url_for('audit.audit_log') }}" {% if request.endpoint == 'audit.audit_log' %}class="active"{% endif %}>سجل النشاط</a>
+    <a href="{{ url_for('backup.backup_page') }}" {% if request.endpoint == 'backup.backup_page' %}class="active"{% endif %}>النسخ الاحتياطي</a>
+    <a href="{{ url_for('settings.settings') }}" {% if request.endpoint == 'settings.settings' %}class="active"{% endif %}>الإعدادات</a>
+    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #3d5166;">
+        <a href="{{ url_for('auth.logout') }}" style="background:#c0392b; color:white; text-align:center; border-radius:5px;">خروج</a>
+    </div>
+</div>
+
+<script>
+    // ساعة حية بالشريط الجانبي
+    function updateSidebarClock() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+
+        const timeEl = document.getElementById('sidebarTime');
+        const dateEl = document.getElementById('sidebarDate');
+        if (!timeEl || !dateEl) return;
+
+        timeEl.textContent = hours + ':' + minutes + ':' + seconds;
+
+        const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+        const dayName = days[now.getDay()];
+        const monthName = months[now.getMonth()];
+        dateEl.textContent = dayName + ' ' + now.getDate() + ' ' + monthName + ' ' + now.getFullYear();
+    }
+    setInterval(updateSidebarClock, 1000);
+    updateSidebarClock();
+
+    // تحديث زر الوضع الليلي حسب الحالة الحالية
+    (function() {
+        var theme = document.documentElement.getAttribute('data-theme');
+        var btn = document.getElementById('themeToggleBtn');
+        if (btn) {
+            var icon = btn.querySelector('.toggle-icon');
+            var text = btn.querySelector('.toggle-text');
+            if (theme === 'dark') {
+                icon.textContent = '\u263E';
+                text.textContent = '\u0646\u0647\u0627\u0631\u064A';
+            } else {
+                icon.textContent = '\u2600';
+                text.textContent = '\u0644\u064A\u0644\u064A';
+            }
+        }
+    })();
+</script>

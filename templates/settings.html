@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}الإعدادات{% endblock %}
+
+{% block styles %}
+    <style>
+        .settings-box {
+            background: white; border-radius: 8px; padding: 25px;
+            max-width: 650px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .settings-section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            color: #2c3e50; font-size: 16px; font-weight: bold;
+            margin-bottom: 15px; padding-bottom: 8px;
+            border-bottom: 2px solid #3498db;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .section-title .icon {
+            font-size: 18px;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block; margin-bottom: 5px; color: #333; font-weight: bold;
+            font-size: 14px;
+        }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px; border: 1px solid #ddd;
+            border-radius: 5px; font-family: inherit; font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #3498db; outline: none;
+        }
+        .form-group .hint {
+            font-size: 12px; color: #999; margin-top: 3px;
+        }
+        .btn-save {
+            background: #27ae60; color: white; padding: 10px 30px;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 14px;
+            font-weight: bold;
+        }
+        .btn-save:hover { background: #219a52; }
+        .form-row {
+            display: flex; gap: 15px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        .toggle-group {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 15px;
+        }
+        .toggle-group input[type="checkbox"] {
+            width: 18px; height: 18px; cursor: pointer;
+        }
+        .toggle-group label {
+            font-weight: bold; color: #333; cursor: pointer;
+        }
+        .weekday-group {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;
+        }
+        .weekday-btn {
+            padding: 8px 14px; border: 2px solid #ddd; border-radius: 8px;
+            cursor: pointer; font-family: inherit; font-size: 13px;
+            background: white; color: #555; transition: all 0.2s;
+        }
+        .weekday-btn.active {
+            background: #3498db; color: white; border-color: #3498db;
+        }
+        .weekday-btn:hover {
+            border-color: #3498db;
+        }
+        .divider {
+            margin: 30px 0; border: none; border-top: 1px solid #eee;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <h1>الإعدادات</h1>
+
+    <div class="settings-box">
+        <form action="{{ url_for('settings.settings') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- ════════════════════════════════════ -->
+            <!-- قسم 1: إعدادات الدوام               -->
+            <!-- ════════════════════════════════════ -->
+            <div class="settings-section">
+                <div class="section-title">
+                    <span class="icon">&#9200;</span>
+                    إعدادات الدوام
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>بداية الدوام</label>
+                        <input type="time" name="work_start" value="{{ settings.get('work_start', '08:00') }}">
+                        <div class="hint">الوقت الافتراضي لبداية الدوام</div>
+                    </div>
+                    <div class="form-group">
+                        <label>نهاية الدوام</label>
+                        <input type="time" name="work_end" value="{{ settings.get('work_end', '17:00') }}">
+                        <div class="hint">الوقت الافتراضي لنهاية الدوام</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>فترة السماح (بالدقائق)</label>
+                        <input type="number" name="grace_period" value="{{ settings.get('grace_period', '15') }}" min="0" max="60">
+                        <div class="hint">عدد الدقائق المسموح بها بعد بداية الدوام قبل تسجيل تأخير</div>
+                    </div>
+                    <div class="form-group">
+                        <label>أقرب وقت لتسجيل الحضور</label>
+                        <input type="time" name="attendance_earliest_time" value="{{ settings.get('attendance_earliest_time', '07:00') }}">
+                        <div class="hint">لا يمكن تسجيل الحضور قبل هذا الوقت</div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- ════════════════════════════════════ -->
+            <!-- قسم 2: أيام العطلة الأسبوعية        -->
+            <!-- ════════════════════════════════════ -->
+            <div class="settings-section">
+                <div class="section-title">
+                    <span class="icon">&#128197;</span>
+                    أيام العطلة الأسبوعية
+                </div>
+                <div class="weekday-group" id="weekdayGroup">
+                    {% set current_weekend = settings.get('weekend_days', '4,5') %}
+                    <button type="button" class="weekday-btn {% if '0' in current_weekend %}active{% endif %}" data-day="0">الاثنين</button>
+                    <button type="button" class="weekday-btn {% if '1' in current_weekend %}active{% endif %}" data-day="1">الثلاثاء</button>
+                    <button type="button" class="weekday-btn {% if '2' in current_weekend %}active{% endif %}" data-day="2">الأربعاء</button>
+                    <button type="button" class="weekday-btn {% if '3' in current_weekend %}active{% endif %}" data-day="3">الخميس</button>
+                    <button type="button" class="weekday-btn {% if '4' in current_weekend %}active{% endif %}" data-day="4">الجمعة</button>
+                    <button type="button" class="weekday-btn {% if '5' in current_weekend %}active{% endif %}" data-day="5">السبت</button>
+                    <button type="button" class="weekday-btn {% if '6' in current_weekend %}active{% endif %}" data-day="6">الأحد</button>
+                </div>
+                <input type="hidden" name="weekend_days" id="weekendInput" value="{{ settings.get('weekend_days', '4,5') }}">
+                <div class="hint" style="margin-top: 8px;">اختر أيام العطلة الأسبوعية (الافتراضي: الجمعة والسبت)</div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- ════════════════════════════════════ -->
+            <!-- قسم 3: رصيد الإجازات الافتراضي      -->
+            <!-- ════════════════════════════════════ -->
+            <div class="settings-section">
+                <div class="section-title">
+                    <span class="icon">&#127898;</span>
+                    رصيد الإجازات الافتراضي
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>رصيد الإجازة السنوية (بالأيام)</label>
+                        <input type="number" name="default_annual_leave_balance" value="{{ settings.get('default_annual_leave_balance', '14') }}" min="0" max="60">
+                        <div class="hint">رصيد الإجازات السنوية الافتراضي للموظفين الجدد</div>
+                    </div>
+                    <div class="form-group">
+                        <label>رصيد الإجازة المرضية (بالأيام)</label>
+                        <input type="number" name="default_sick_leave_balance" value="{{ settings.get('default_sick_leave_balance', '10') }}" min="0" max="60">
+                        <div class="hint">رصيد الإجازات المرضية الافتراضي للموظفين الجدد</div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- ════════════════════════════════════ -->
+            <!-- قسم 4: الانصراف التلقائي            -->
+            <!-- ════════════════════════════════════ -->
+            <div class="settings-section">
+                <div class="section-title">
+                    <span class="icon">&#128276;</span>
+                    الانصراف التلقائي
+                </div>
+
+                <div class="toggle-group">
+                    <input type="checkbox" name="auto_checkout_enabled" id="autoCheckoutToggle" value="true"
+                           {% if settings.get('auto_checkout_enabled', 'True') not in ('false', '0', 'no', 'False') %}checked{% endif %}>
+                    <label for="autoCheckoutToggle">تفعيل الانصراف التلقائي لمن نسي تسجيل الانصراف</label>
+                </div>
+
+                <div class="form-group" id="autoCheckoutHoursGroup">
+                    <label>تسجيل الانصراف التلقائي بعد (بالساعات من نهاية الدوام)</label>
+                    <input type="number" name="auto_checkout_after_hours" value="{{ settings.get('auto_checkout_after_hours', '1') }}" min="0" max="5">
+                    <div class="hint">مثلاً: إذا نهاية الدوام 17:00 والقيمة 1، يتم تسجيل الانصراف تلقائياً عند الساعة 18:00</div>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- ════════════════════════════════════ -->
+            <!-- قسم 5: تقييد تسجيل الدخول           -->
+            <!-- ════════════════════════════════════ -->
+            <div class="settings-section">
+                <div class="section-title">
+                    <span class="icon">&#128274;</span>
+                    تقييد تسجيل الدخول
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>الحد الأقصى لمحاولات الدخول</label>
+                        <input type="number" name="max_login_attempts" value="{{ settings.get('max_login_attempts', '5') }}" min="1" max="20">
+                        <div class="hint">عدد المحاولات المسموحة قبل الحظر</div>
+                    </div>
+                    <div class="form-group">
+                        <label>مدة الحظر (بالدقائق)</label>
+                        <input type="number" name="login_lockout_minutes" value="{{ settings.get('login_lockout_minutes', '5') }}" min="1" max="60">
+                        <div class="hint">مدة منع الدخول بعد تجاوز المحاولات</div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- ════════════════════════════════════ -->
+            <!-- قسم 6: التعرف على الوجه             -->
+            <!-- ════════════════════════════════════ -->
+            <div class="settings-section">
+                <div class="section-title">
+                    <span class="icon">&#128100;</span>
+                    التعرف على الوجه
+                </div>
+
+                <div class="form-group">
+                    <label>عدد صور التسجيل</label>
+                    <input type="number" name="registration_images" value="{{ settings.get('registration_images', '5') }}" min="3" max="10">
+                    <div class="hint">عدد الصور المطلوبة لتسجيل بصمة الوجه (3-10)</div>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- ════════════════════════════════════ -->
+            <!-- قسم 7: إعدادات الكشك                -->
+            <!-- ════════════════════════════════════ -->
+            <div class="settings-section">
+                <div class="section-title">
+                    <span class="icon">&#128187;</span>
+                    إعدادات الكشك
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>رمز PIN للكشك</label>
+                        <input type="password" name="kiosk_pin" value="{{ settings.get('kiosk_pin', '1234') }}" maxlength="6">
+                        <div class="hint">رمز PIN المطلوب للخروج من وضع الكشك</div>
+                    </div>
+                    <div class="form-group">
+                        <label>مدة عرض شاشة الترحيب (بالثواني)</label>
+                        <input type="number" name="kiosk_welcome_duration" value="{{ settings.get('kiosk_welcome_duration', '5') }}" min="1" max="30">
+                        <div class="hint">مدة بقاء شاشة الترحيب بعد التعرف على الموظف</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-save">حفظ الإعدادات</button>
+        </form>
+
+        <hr class="divider">
+
+        <!-- تغيير كلمة المرور -->
+        <div class="settings-section">
+            <div class="section-title">
+                <span class="icon">&#128272;</span>
+                تغيير كلمة المرور
+            </div>
+            <form action="{{ url_for('settings.change_password') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label>كلمة المرور الحالية</label>
+                    <input type="password" name="current_password" required placeholder="أدخل كلمة المرور الحالية">
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور الجديدة</label>
+                    <input type="password" name="new_password" required minlength="6" placeholder="6 أحرف على الأقل">
+                </div>
+                <div class="form-group">
+                    <label>تأكيد كلمة المرور الجديدة</label>
+                    <input type="password" name="confirm_password" required minlength="6" placeholder="أعد كتابة كلمة المرور الجديدة">
+                </div>
+                <button type="submit" class="btn-save" style="background: #e67e22;">تغيير كلمة المرور</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    // أزرار أيام العطلة الأسبوعية
+    document.querySelectorAll('.weekday-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            this.classList.toggle('active');
+            updateWeekendInput();
+        });
+    });
+
+    function updateWeekendInput() {
+        var activeDays = [];
+        document.querySelectorAll('.weekday-btn.active').forEach(function(btn) {
+            activeDays.push(btn.getAttribute('data-day'));
+        });
+        document.getElementById('weekendInput').value = activeDays.join(',');
+    }
+
+    // إظهار/إخفاء إعدادات الانصراف التلقائي
+    var toggle = document.getElementById('autoCheckoutToggle');
+    var hoursGroup = document.getElementById('autoCheckoutHoursGroup');
+    function toggleAutoCheckout() {
+        hoursGroup.style.opacity = toggle.checked ? '1' : '0.4';
+        hoursGroup.querySelector('input').disabled = !toggle.checked;
+    }
+    toggle.addEventListener('change', toggleAutoCheckout);
+    toggleAutoCheckout();
+    </script>
+{% endblock %}

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقرير الحضور - طباعة</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', 'Segoe UI', Tahoma, sans-serif; direction: rtl; font-size: 12px; color: #333; }
+        .print-header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #2C3E50; }
+        .print-header h1 { color: #2C3E50; font-size: 20px; margin-bottom: 5px; }
+        .print-header .meta { color: #7F8C8D; font-size: 11px; }
+        .print-actions { text-align: center; margin-bottom: 20px; }
+        .print-actions button { padding: 10px 30px; font-size: 14px; background: #2C3E50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #BDC3C7; padding: 6px 8px; text-align: center; }
+        th { background: #2C3E50; color: white; font-size: 11px; }
+        tr:nth-child(even) { background: #F8F9FA; }
+        .status-present { color: #27AE60; font-weight: bold; }
+        .status-late { color: #E67E22; font-weight: bold; }
+        .status-absent { color: #E74C3C; font-weight: bold; }
+        .status-leave { color: #3498DB; font-weight: bold; }
+        .summary-box { margin-top: 20px; padding: 15px; border: 2px solid #2C3E50; border-radius: 5px; }
+        .summary-box h3 { margin-bottom: 10px; color: #2C3E50; }
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .summary-item { text-align: center; padding: 8px; background: #EBF5FB; border-radius: 3px; }
+        .summary-item .label { font-size: 10px; color: #7F8C8D; }
+        .summary-item .value { font-size: 18px; font-weight: bold; color: #2C3E50; }
+        @media print {
+            .print-actions { display: none; }
+            body { font-size: 10px; }
+            th { font-size: 9px; padding: 4px; }
+            td { padding: 3px 5px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-actions">
+        <button onclick="window.print()">طباعة التقرير</button>
+        <button onclick="window.close()" style="background: #95A5A6; margin-right: 10px;">إغلاق</button>
+    </div>
+
+    <div class="print-header">
+        <h1>نظام الحضور بالتعرف على الوجه - تقرير الحضور</h1>
+        <div class="meta">تاريخ الطباعة: {{ print_date }}</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>الموظف</th>
+                <th>الرقم</th>
+                <th>القسم</th>
+                <th>التاريخ</th>
+                <th>الحضور</th>
+                <th>الانصراف</th>
+                <th>ساعات العمل</th>
+                <th>التأخير</th>
+                <th>خروج مبكر</th>
+                <th>الحالة</th>
+                <th>ملاحظات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ record.employee.name if record.employee else '-' }}</td>
+                <td>{{ record.employee.employee_id if record.employee else '-' }}</td>
+                <td>{{ record.employee.department.name if record.employee and record.employee.department else '-' }}</td>
+                <td>{{ record.date }}</td>
+                <td>{{ record.time_in.strftime('%H:%M') if record.time_in else '-' }}</td>
+                <td>{{ record.time_out.strftime('%H:%M') if record.time_out else '-' }}</td>
+                <td>{{ record.get('work_hours_display', '-') }}</td>
+                <td>{{ record.get('late_minutes', 0) }}د</td>
+                <td>{% if record.get('early_checkout') %}{{ record.get('early_checkout_minutes', 0) }}د{% else %}-{% endif %}</td>
+                <td>
+                    {% if record.status == 'present' %}<span class="status-present">حاضر</span>
+                    {% elif record.status == 'late' %}<span class="status-late">متأخر</span>
+                    {% elif record.status == 'absent' %}<span class="status-absent">غائب{% if record.get('absence_type') == 'justified' %} (مبرر){% endif %}</span>
+                    {% elif record.status == 'leave' %}<span class="status-leave">إجازة</span>
+                    {% elif record.status == 'admin_task' %}مهمة إدارية
+                    {% elif record.status == 'overtime' %}عمل إضافي
+                    {% else %}{{ record.status }}{% endif %}
+                </td>
+                <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;">{{ record.description[:50] if record.description else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="summary-box">
+        <h3>ملخص التقرير</h3>
+        <div class="summary-grid">
+            <div class="summary-item">
+                <div class="label">حضور</div>
+                <div class="value" style="color: #27AE60;">{{ summary.present }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">تأخير</div>
+                <div class="value" style="color: #E67E22;">{{ summary.late }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">غياب مبرر</div>
+                <div class="value" style="color: #E67E22;">{{ summary.absent_justified }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">غياب غير مبرر</div>
+                <div class="value" style="color: #E74C3C;">{{ summary.absent_unjustified }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">إجازات</div>
+                <div class="value" style="color: #3498DB;">{{ summary.leave }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">ساعات العمل</div>
+                <div class="value">{{ '%.1f'|format(summary.total_work_hours) }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">دقائق التأخير</div>
+                <div class="value" style="color: #E67E22;">{{ summary.total_late_minutes }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">خروج مبكر</div>
+                <div class="value" style="color: #C0392B;">{{ summary.total_early_checkout }}</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

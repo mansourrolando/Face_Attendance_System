@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{% if error_code %}خطأ {{ error_code }}{% else %}خطأ{% endif %}{% endblock %}
+{% block styles %}
+<style>
+.error-container { text-align: center; padding: 80px 20px; }
+.error-code { font-size: 100px; font-weight: bold; color: #e74c3c; line-height: 1; }
+.error-title { font-size: 24px; color: #2c3e50; margin: 20px 0 10px; }
+.error-message { font-size: 16px; color: #777; margin-bottom: 30px; }
+.btn-home { background: #3498db; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-size: 14px; }
+.btn-home:hover { background: #2980b9; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="error-container">
+    <div class="error-code">{{ error_code | default('404') }}</div>
+    <h2 class="error-title">{{ error_title | default('الصفحة غير موجودة') }}</h2>
+    <p class="error-message">{{ error_message | default('عذراً، الصفحة التي تبحث عنها غير موجودة.') }}</p>
+    <a href="{{ url_for('dashboard.dashboard') }}" class="btn-home">العودة للوحة التحكم</a>
+</div>
+{% endblock %}

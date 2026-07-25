@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Tahoma, sans-serif;
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            min-height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .login-box {
+            background: white; border-radius: 15px; padding: 40px;
+            width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .login-box h1 {
+            text-align: center; color: #2c3e50; margin-bottom: 30px; font-size: 22px;
+        }
+        .login-box .logo-icon {
+            text-align: center; font-size: 3rem; margin-bottom: 15px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block; margin-bottom: 8px; color: #333; font-weight: bold; font-size: 14px;
+        }
+        .form-group input {
+            width: 100%; padding: 12px 15px; border: 1px solid #ddd;
+            border-radius: 8px; font-size: 14px; font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            border-color: #3498db; outline: none;
+        }
+        .btn-login {
+            width: 100%; padding: 14px; background: #3498db; color: white;
+            border: none; border-radius: 8px; font-size: 16px; font-weight: bold;
+            cursor: pointer; transition: background 0.3s;
+        }
+        .btn-login:hover { background: #2980b9; }
+
+        .flash-container {
+            margin-bottom: 20px;
+        }
+        .flash-msg {
+            padding: 10px 15px; border-radius: 5px; margin-bottom: 8px;
+            font-size: 14px; text-align: center;
+        }
+        .flash-success { background: #d5f5e3; color: #1e8449; }
+        .flash-danger { background: #fadbd8; color: #c0392b; }
+        .flash-warning { background: #fef9e7; color: #7d6608; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="logo-icon">🔐</div>
+        <h1>نظام الحضور الذكي</h1>
+
+        <!-- رسائل Flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-container">
+                    {% for category, message in messages %}
+                        <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('auth.login') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label>اسم المستخدم</label>
+                <input type="text" name="userId" required placeholder="أدخل اسم المستخدم">
+            </div>
+            <div class="form-group">
+                <label>كلمة المرور</label>
+                <input type="password" name="userPassword" required placeholder="أدخل كلمة المرور">
+            </div>
+            <button type="submit" class="btn-login">تسجيل الدخول</button>
+        </form>
+    </div>
+</body>
+</html>

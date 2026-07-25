@@ -1,0 +1,368 @@
+/* ==========================================
+   الوضع الليلي - Dark Mode
+   يستخدم CSS Variables للتبديل السلس
+   ========================================== */
+
+:root {
+    /* ألوان الوضع الفاتح (الافتراضي) */
+    --bg-primary: #f5f5f5;
+    --bg-card: #ffffff;
+    --bg-sidebar: #2c3e50;
+    --bg-sidebar-hover: #3498db;
+    --text-primary: #333333;
+    --text-secondary: #555555;
+    --text-muted: #7f8c8d;
+    --text-sidebar: #b8c7d2;
+    --border-color: #eeeeee;
+    --border-dark: #ddd;
+    --table-hover: #f1f1f1;
+    --th-bg: #f8f9fa;
+    --input-bg: #ffffff;
+    --input-border: #ddd;
+    --input-focus: #3498db;
+    --shadow-color: rgba(0,0,0,0.05);
+    --flash-shadow: rgba(0,0,0,0.2);
+    --info-bg: #d6eaf8;
+    --info-border: #85c1e9;
+    --info-text: #1a5276;
+    --warning-bg: #fff3cd;
+    --warning-border: #ffc107;
+    --warning-text: #856404;
+    --danger-bg: #f8d7da;
+    --danger-border: #f5c6cb;
+    --danger-text: #721c24;
+    --success-bg: #d4edda;
+    --success-border: #c3e6cb;
+    --success-text: #155724;
+}
+
+/* الوضع الليلي */
+[data-theme="dark"] {
+    --bg-primary: #1a1a2e;
+    --bg-card: #16213e;
+    --bg-sidebar: #0f3460;
+    --bg-sidebar-hover: #1a73e8;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-muted: #7a7a8a;
+    --text-sidebar: #a0b4c8;
+    --border-color: #2a2a4a;
+    --border-dark: #3a3a5a;
+    --table-hover: #1e2a4a;
+    --th-bg: #1a2744;
+    --input-bg: #1a2744;
+    --input-border: #3a3a5a;
+    --input-focus: #3498db;
+    --shadow-color: rgba(0,0,0,0.3);
+    --flash-shadow: rgba(0,0,0,0.5);
+    --info-bg: #1a2744;
+    --info-border: #2980b9;
+    --info-text: #85c1e9;
+    --warning-bg: #2a2518;
+    --warning-border: #d4a017;
+    --warning-text: #f0c040;
+    --danger-bg: #2a1a1e;
+    --danger-border: #c0392b;
+    --danger-text: #f1948a;
+    --success-bg: #1a2a1e;
+    --success-border: #27ae60;
+    --success-text: #82e0aa;
+}
+
+/* تطبيق المتغيرات */
+[data-theme="dark"] body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .sidebar {
+    background: var(--bg-sidebar);
+}
+
+[data-theme="dark"] .sidebar a {
+    color: var(--text-sidebar);
+}
+
+[data-theme="dark"] .sidebar a:hover,
+[data-theme="dark"] .sidebar a.active {
+    background: var(--bg-sidebar-hover);
+}
+
+[data-theme="dark"] .main {
+    background: var(--bg-primary);
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .table-box {
+    background: var(--bg-card);
+    box-shadow: 0 2px 5px var(--shadow-color);
+}
+
+[data-theme="dark"] table {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] th {
+    background: var(--th-bg);
+    color: var(--text-secondary);
+    border-bottom-color: var(--border-dark);
+}
+
+[data-theme="dark"] td {
+    border-bottom-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] tr:hover {
+    background: var(--table-hover);
+}
+
+/* البطاقات */
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .chart-box,
+[data-theme="dark"] .recent-section,
+[data-theme="dark"] .logs-box,
+[data-theme="dark"] .camera-box,
+[data-theme="dark"] .status-box {
+    background: var(--bg-card);
+    box-shadow: 0 2px 10px var(--shadow-color);
+}
+
+[data-theme="dark"] .stat-card h2 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .stat-card p {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .chart-box h3,
+[data-theme="dark"] .recent-section h3,
+[data-theme="dark"] .logs-box h3 {
+    color: var(--text-primary);
+    border-bottom-color: var(--border-color);
+}
+
+/* حقول الإدخال */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border-color: var(--input-border);
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+    border-color: var(--input-focus);
+}
+
+/* النماذج */
+[data-theme="dark"] .form-control {
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border-color: var(--input-border);
+}
+
+/* === بطاقات النماذج === */
+[data-theme="dark"] .form-box,
+[data-theme="dark"] .container-box,
+[data-theme="dark"] .filter-card,
+[data-theme="dark"] .list-card,
+[data-theme="dark"] .create-card {
+    background: var(--bg-card);
+    box-shadow: 0 2px 5px var(--shadow-color);
+}
+
+[data-theme="dark"] .form-box label,
+[data-theme="dark"] .container-box label,
+[data-theme="dark"] .filter-card label {
+    color: var(--text-primary);
+}
+
+/* === بطاقات المعلومات الملونة === */
+[data-theme="dark"] .info-card {
+    background: var(--warning-bg);
+    border-color: var(--warning-border);
+}
+
+[data-theme="dark"] .info-card-title,
+[data-theme="dark"] .info-card strong {
+    color: var(--warning-text);
+}
+
+[data-theme="dark"] .info-box {
+    background: var(--info-bg);
+    border-color: var(--info-border);
+    color: var(--info-text);
+}
+
+[data-theme="dark"] .info-box strong {
+    color: var(--info-text);
+}
+
+[data-theme="dark"] .calc-info {
+    background: var(--info-bg);
+    border-color: var(--info-border);
+    color: var(--info-text);
+}
+
+[data-theme="dark"] .warning-card {
+    background: var(--warning-bg);
+    border-color: var(--warning-border);
+}
+
+[data-theme="dark"] .warning-card strong,
+[data-theme="dark"] .warning-card ul,
+[data-theme="dark"] .warning-card li {
+    color: var(--warning-text);
+}
+
+[data-theme="dark"] .delete-card {
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+}
+
+[data-theme="dark"] .delete-card-title,
+[data-theme="dark"] .delete-card p {
+    color: var(--danger-text);
+}
+
+[data-theme="dark"] .create-card {
+    border-right-color: #27ae60;
+}
+
+[data-theme="dark"] .create-card-title {
+    color: #82e0aa;
+}
+
+[data-theme="dark"] .create-card p {
+    color: var(--text-secondary);
+}
+
+/* === بطاقة التقويم === */
+[data-theme="dark"] .calendar-box {
+    background: var(--bg-card);
+    box-shadow: 0 2px 5px var(--shadow-color);
+}
+
+[data-theme="dark"] .calendar-box td:first-child {
+    background: var(--bg-card);
+}
+
+[data-theme="dark"] .legend-bar {
+    background: var(--bg-card);
+}
+
+[data-theme="dark"] .legend-item {
+    color: var(--text-secondary);
+}
+
+/* ألوان الخلايا في الوضع الليلي */
+[data-theme="dark"] .cell-present { background: #1a3a2a; }
+[data-theme="dark"] .cell-late { background: #2a2a1a; }
+[data-theme="dark"] .cell-absent { background: #2a1a1a; }
+[data-theme="dark"] .cell-leave { background: #1a2a3a; }
+[data-theme="dark"] .cell-weekend { background: #1a1a2a; }
+[data-theme="dark"] .cell-holiday { background: #2a2518; }
+[data-theme="dark"] .cell-future { background: #1a1a2e; }
+
+/* === شريط الفلترة === */
+[data-theme="dark"] .filter-bar {
+    background: var(--bg-card);
+    box-shadow: 0 1px 3px var(--shadow-color);
+}
+
+[data-theme="dark"] .filter-bar label {
+    color: var(--text-primary);
+}
+
+/* === التنقل بين الأشهر === */
+[data-theme="dark"] .month-nav h3 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-nav {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--input-border);
+}
+
+[data-theme="dark"] .btn-nav:hover {
+    background: var(--bg-sidebar-hover);
+    color: white;
+}
+
+/* === صفحة الموظفين === */
+[data-theme="dark"] .badge-active { background: #27ae60; }
+[data-theme="dark"] .badge-inactive { background: #e74c3c; }
+
+[data-theme="dark"] .filter-btn {
+    background: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .filter-btn.active {
+    color: white;
+}
+
+/* === أزرار الإجراءات === */
+[data-theme="dark"] .btn-add { background: #27ae60; }
+[data-theme="dark"] .btn-add:hover { background: #219a52; }
+[data-theme="dark"] .btn-save { background: #27ae60; }
+[data-theme="dark"] .btn-save:hover { background: #219a52; }
+[data-theme="dark"] .btn-cancel { background: #7f8c8d; }
+[data-theme="dark"] .btn-back { background: #7f8c8d; }
+
+/* === شريط الأيام في العطل === */
+[data-theme="dark"] .day-weekend { background: rgba(255,255,255,0.03); }
+
+/* سجل النشاط */
+[data-theme="dark"] .log-name {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .log-time {
+    color: var(--text-muted);
+}
+
+/* زر تبديل الوضع */
+.theme-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.08);
+    transition: all 0.3s ease;
+    border: none;
+    color: var(--text-sidebar);
+    font-size: 12px;
+    font-family: Tahoma, sans-serif;
+}
+
+.theme-toggle:hover {
+    background: rgba(255,255,255,0.15);
+}
+
+.theme-toggle .toggle-icon {
+    font-size: 16px;
+}
+
+/* انتقال سلس */
+body, .sidebar, .main, .table-box, .stat-card, .chart-box, .recent-section,
+.logs-box, .camera-box, .status-box, th, td, input, select, textarea,
+.form-box, .container-box, .filter-card, .list-card, .create-card,
+.info-card, .info-box, .warning-card, .delete-card, .calc-info,
+.calendar-box, .legend-bar, .filter-bar, .month-nav {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
